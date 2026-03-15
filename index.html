@@ -159,51 +159,6 @@ const SPORTS_MAP={
     'totals_p1','totals_p2','totals_p3',
     'team_totals','alternate_spreads','alternate_totals'
   ]},
-  soccer_epl:{name:'EPL',e:'⚽',c:'#6a0572',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_last_goal_scorer',
-    'player_shots_on_target','player_shots','player_assists','player_to_receive_card'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
-    'spreads_h1','totals_h1','team_totals',
-    'alternate_totals_corners','alternate_spreads_corners','double_chance'
-  ]},
-  soccer_usa_mls:{name:'MLS',e:'⚽',c:'#1a237e',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
-    'totals_h1','team_totals','double_chance'
-  ]},
-  soccer_spain_la_liga:{name:'LA LIGA',e:'⚽',c:'#f57f17',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
-    'spreads_h1','totals_h1','team_totals','double_chance'
-  ]},
-  soccer_germany_bundesliga:{name:'BUNDES',e:'⚽',c:'#c62828',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
-    'totals_h1','team_totals','double_chance'
-  ]},
-  soccer_italy_serie_a:{name:'SERIE A',e:'⚽',c:'#1565c0',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
-    'totals_h1','team_totals','double_chance'
-  ]},
-  soccer_france_ligue_one:{name:'LIGUE 1',e:'⚽',c:'#0277bd',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
-    'totals_h1','team_totals','double_chance'
-  ]},
-  soccer_uefa_champs_league:{name:'UCL',e:'⚽',c:'#1a237e',props:[
-    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots'
-  ],gameMarkets:[
-    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
-    'totals_h1','team_totals','double_chance'
-  ]},
-  mma_mixed_martial_arts:{name:'MMA',e:'🥊',c:'#d90429',props:[],gameMarkets:['h2h','spreads','totals']},
   golf_pga_championship:{name:'GOLF',e:'⛳',c:'#2d6a4f',props:[],gameMarkets:['h2h','outrights']},
   tennis_atp_french_open:{name:'TENNIS',e:'🎾',c:'#c6a700',props:[],gameMarkets:['h2h','spreads','totals']}
 };
@@ -758,8 +713,7 @@ function render(){
     h+='<strong style="color:#66bb6a">NCAAF:</strong> pass/rush/rec yds, TDs + ML, spread, total, 1H, 2H, team totals<br>';
     h+='<strong style="color:#e63946">MLB:</strong> hits, TB, HR, RBI, K, pitcher props + ML, spread, total, F5, 1st/3rd/5th innings, alt lines<br>';
     h+='<strong style="color:#457b9d">NHL:</strong> pts, goals, ast, SOG, saves + ML, spread, total, P1-P3, alt lines, team totals<br>';
-    h+='<strong style="color:#6a0572">Soccer:</strong> EPL, MLS, La Liga, Bundesliga, Serie A, Ligue 1, UCL — goals, shots, cards + ML, spread, total, 1H, BTTS, draw no bet, double chance, corners<br>';
-    h+='<strong style="color:#d90429">MMA/Golf/Tennis:</strong> ML, spreads, totals, outrights</p></div>';
+    h+='<strong style="color:#2d6a4f">Golf:</strong> ML, outrights · <strong style="color:#c6a700">Tennis:</strong> ML, spreads, totals</p></div>';
 
     h+='<div class="setup"><div class="setup-t">🎫 Custom Slip</div>';
     h+='<p style="font-size:13px;color:#99a;line-height:1.5">Tap the <span style="color:var(--slip);font-weight:700">+</span> button on any edge card to build your own parlay slip (up to 10 legs). View combined probability, EV, Kelly sizing, and potential payout in the SLIP tab.</p></div>';
