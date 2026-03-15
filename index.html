@@ -91,10 +91,10 @@ const GR={'A+':0,A:1,'B+':2,B:3,C:4,D:5,F:6};
 // ═══ STATE ═══
 let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgress:0,scanStatus:'',
   edges:[],filterSport:'ALL',filterMkt:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'C',
-  lastScan:null,scanStats:{}};
+  lastScan:null,scanStats:{},scanMode:'full',apiRemaining:'?',apiUsed:0,scanLog:[]};
 
-function save(){try{localStorage.setItem('evpro3',JSON.stringify({apiKey:S.apiKey,bankroll:S.bankroll,kellyMult:S.kellyMult,edges:S.edges,minGrade:S.minGrade,lastScan:S.lastScan,scanStats:S.scanStats}))}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('evpro3'));if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.edges=d.edges||[];S.minGrade=d.minGrade||'C';S.lastScan=d.lastScan||null;S.scanStats=d.scanStats||{}}}catch(e){}}
+function save(){try{localStorage.setItem('evpro3',JSON.stringify({apiKey:S.apiKey,bankroll:S.bankroll,kellyMult:S.kellyMult,edges:S.edges,minGrade:S.minGrade,lastScan:S.lastScan,scanStats:S.scanStats,scanMode:S.scanMode}))}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('evpro3'));if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.edges=d.edges||[];S.minGrade=d.minGrade||'C';S.lastScan=d.lastScan||null;S.scanStats=d.scanStats||{};S.scanMode=d.scanMode||'full'}}catch(e){}}
 
 // ═══ SPORTS CONFIG ═══
 const SPORTS=[
@@ -249,15 +249,97 @@ function formatMarketName(key){
 // ═══ SCANNER ENGINE ═══
 let scanAbort=false;
 
+// Track API usage from response headers
+function trackApi(res){
+  const rem=res.headers.get('x-requests-remaining');
+  const used=res.headers.get('x-requests-used');
+  if(rem!==null)S.apiRemaining=rem;
+  if(used!==null)S.apiUsed=used;
+}
+
+// Smart fetch with error tracking
+async function apiFetch(url,label){
+  try{
+    const res=await fetch(url);
+    trackApi(res);
+    if(res.status===401){S.scanLog.push('❌ '+label+': Invalid API key');return null}
+    if(res.status===429){S.scanLog.push('⚠️ '+label+': Rate limited (wait 1 min)');return null}
+    if(res.status===422){S.scanLog.push('⚠️ '+label+': Quota exceeded');return null}
+    if(!res.ok){S.scanLog.push('⚠️ '+label+': HTTP '+res.status);return null}
+    return await res.json();
+  }catch(e){
+    S.scanLog.push('❌ '+label+': Network error');
+    return null;
+  }
+}
+
+// Process bookmaker data into edges
+function findEdges(data,sport,event,mktKey,allEdges){
+  if(!data||!data.bookmakers||!data.bookmakers.length)return;
+  
+  const marketData={};
+  data.bookmakers.forEach(bk=>{
+    (bk.markets||[]).forEach(mkt=>{
+      if(!marketData[mkt.key])marketData[mkt.key]={};
+      mkt.outcomes.forEach(oc=>{
+        const ocKey=oc.name+(oc.point!==undefined?'|'+oc.point:'');
+        if(!marketData[mkt.key][ocKey])marketData[mkt.key][ocKey]={outcomes:[],point:oc.point};
+        marketData[mkt.key][ocKey].outcomes.push({book:bk.title,bookKey:bk.key,name:oc.name,price:oc.price,point:oc.point});
+      });
+    });
+  });
+
+  Object.entries(marketData).forEach(([mk,outcomes])=>{
+    S.scanStats.markets++;
+    Object.entries(outcomes).forEach(([ocKey,ocData])=>{
+      const prices=ocData.outcomes.map(o=>o.price).filter(p=>p&&Math.abs(p)>=100);
+      if(prices.length<2)return;
+
+      const impliedProbs=prices.map(p=>americanToProb(p));
+      const avgProb=impliedProbs.reduce((a,b)=>a+b,0)/impliedProbs.length;
+
+      ocData.outcomes.forEach(bookOc=>{
+        const bookProb=americanToProb(bookOc.price);
+        if(bookProb<=0.01||bookProb>=0.99)return;
+        const ev=calcEv(avgProb,bookProb);
+        if(ev<.02)return;
+
+        const grade=getGrade(ev);
+        if(GR[grade.l]>GR[S.minGrade])return;
+
+        const k=kellyF(avgProb,bookProb,S.kellyMult);
+        const mktCat=getMktCategory(mk);
+
+        allEdges.push({
+          sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,
+          event:(event.away_team||'')+ ' @ '+(event.home_team||''),
+          time:new Date(event.commence_time).toLocaleString(),
+          marketKey:mk,marketName:formatMarketName(mk),
+          mktCategory:mktCat,mktFilterKey:getMktFilterKey(mk),
+          outcome:bookOc.name,point:bookOc.point,
+          bestBook:bookOc.book,bestBookKey:bookOc.bookKey,bestPrice:bookOc.price,
+          fairProb:avgProb,bookProb,ev,grade,
+          kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,
+          allBooks:ocData.outcomes.map(o=>({name:o.book,price:o.price})),
+          numBooks:prices.length
+        });
+        S.scanStats.edges++;
+      });
+    });
+  });
+}
+
 async function runScan(){
   if(!S.apiKey){alert('Set your API key in the SET tab first');return}
   if(S.scanning){scanAbort=true;return}
   S.scanning=true;S.edges=[];scanAbort=false;
   S.scanStats={sports:0,events:0,markets:0,edges:0};
+  S.scanLog=[];S.apiRemaining='?';S.apiUsed=0;
   render();
 
   const allEdges=[];
 
+  // Scan each sport
   for(let si=0;si<SPORTS.length;si++){
     if(scanAbort)break;
     const sport=SPORTS[si];
@@ -265,105 +347,57 @@ async function runScan(){
     S.scanProgress=((si)/SPORTS.length)*100;
     render();
 
-    // Step 1: Get events for this sport
-    let events=[];
-    try{
-      const evUrl=`https://api.the-odds-api.com/v4/sports/${sport.key}/events?apiKey=${S.apiKey}`;
-      const evRes=await fetch(evUrl);
-      if(evRes.ok)events=await evRes.json();
-    }catch(e){console.log('Events error:',sport.key,e)}
-    if(!events.length)continue;
+    // Step 1: Get events
+    const events=await apiFetch(
+      `https://api.the-odds-api.com/v4/sports/${sport.key}/events?apiKey=${S.apiKey}`,
+      sport.name+' events'
+    );
+    if(!events||!events.length){
+      S.scanLog.push('⏭ '+sport.name+': No events (off-season or no data)');
+      continue;
+    }
     S.scanStats.sports++;
+    S.scanLog.push('✅ '+sport.name+': '+events.length+' events found');
 
-    // Step 2: For each event, pull all game-level + prop markets
-    const maxEvents=Math.min(events.length,8); // cap per sport to conserve API calls
+    // Step 2: For each event, pull markets
+    // Cap events per sport based on scan mode
+    const maxEvents=Math.min(events.length, S.scanMode==='quick'?3:8);
+    
     for(let ei=0;ei<maxEvents;ei++){
       if(scanAbort)break;
       const event=events[ei];
       S.scanStats.events++;
-      S.scanStatus=sport.e+' '+sport.name+': '+(event.away_team||'')+' @ '+(event.home_team||'')+' ('+(ei+1)+'/'+maxEvents+')';
-      S.scanProgress=((si+ei/maxEvents)/SPORTS.length)*100;
+      const matchLabel=(event.away_team||'?')+' @ '+(event.home_team||'?');
+      S.scanStatus=sport.e+' '+sport.name+': '+matchLabel+' ('+(ei+1)+'/'+maxEvents+')';
+      S.scanProgress=((si+(ei/maxEvents))/SPORTS.length)*100;
       render();
 
-      // Batch markets into chunks to avoid overly long URLs
+      // Split markets into chunks of 8 to manage API cost
+      // Each unique market in the response costs 1 quota unit
       const allMkts=[...sport.gameMarkets,...sport.propMarkets];
-      const chunkSize=8; // max markets per request to keep API cost reasonable
+      const chunkSize=8;
       const chunks=[];
       for(let i=0;i<allMkts.length;i+=chunkSize)chunks.push(allMkts.slice(i,i+chunkSize));
 
       for(const chunk of chunks){
         if(scanAbort)break;
-        try{
-          const mktsStr=chunk.join(',');
-          const url=`https://api.the-odds-api.com/v4/sports/${sport.key}/events/${event.id}/odds?apiKey=${S.apiKey}&regions=us&markets=${mktsStr}&oddsFormat=american`;
-          const res=await fetch(url);
-          if(!res.ok)continue;
-          const data=await res.json();
-          if(!data.bookmakers||!data.bookmakers.length)continue;
+        
+        // Check if we're running low on API quota
+        if(S.apiRemaining!=='?'&&parseInt(S.apiRemaining)<5){
+          S.scanLog.push('⚠️ API quota nearly exhausted ('+S.apiRemaining+' remaining). Stopping.');
+          scanAbort=true;break;
+        }
 
-          // Process each market across bookmakers
-          const marketData={};
-          data.bookmakers.forEach(bk=>{
-            (bk.markets||[]).forEach(mkt=>{
-              if(!marketData[mkt.key])marketData[mkt.key]={};
-              mkt.outcomes.forEach(oc=>{
-                const ocKey=oc.name+(oc.point!==undefined?'|'+oc.point:'');
-                if(!marketData[mkt.key][ocKey])marketData[mkt.key][ocKey]={outcomes:[],point:oc.point};
-                marketData[mkt.key][ocKey].outcomes.push({book:bk.title,bookKey:bk.key,name:oc.name,price:oc.price,point:oc.point});
-              });
-            });
-          });
-
-          // Find edges: compare each book's price to consensus fair prob
-          Object.entries(marketData).forEach(([mktKey,outcomes])=>{
-            S.scanStats.markets++;
-            Object.entries(outcomes).forEach(([ocKey,ocData])=>{
-              const prices=ocData.outcomes.map(o=>o.price).filter(p=>p);
-              if(prices.length<2)return; // need 2+ books for consensus
-
-              // Calculate fair probability from consensus
-              const impliedProbs=prices.map(p=>americanToProb(p));
-              const avgProb=impliedProbs.reduce((a,b)=>a+b,0)/impliedProbs.length;
-
-              // Check each book for edge vs consensus
-              ocData.outcomes.forEach(bookOc=>{
-                const bookProb=americanToProb(bookOc.price);
-                if(bookProb<=0||bookProb>=1)return;
-                const ev=calcEv(avgProb,bookProb);
-                if(ev<.02)return; // minimum 2% edge
-
-                const grade=getGrade(ev);
-                if(GR[grade.l]>GR[S.minGrade])return;
-
-                const k=kellyF(avgProb,bookProb,S.kellyMult);
-                const mktCat=getMktCategory(mktKey);
-
-                allEdges.push({
-                  sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,
-                  event:(event.away_team||'')+ ' @ '+(event.home_team||''),
-                  time:new Date(event.commence_time).toLocaleString(),
-                  marketKey:mktKey,
-                  marketName:formatMarketName(mktKey),
-                  mktCategory:mktCat,
-                  mktFilterKey:getMktFilterKey(mktKey),
-                  outcome:bookOc.name,
-                  point:bookOc.point,
-                  bestBook:bookOc.book,bestBookKey:bookOc.bookKey,
-                  bestPrice:bookOc.price,
-                  fairProb:avgProb,bookProb,
-                  ev,grade,
-                  kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,
-                  allBooks:ocData.outcomes.map(o=>({name:o.book,price:o.price})),
-                  numBooks:prices.length
-                });
-                S.scanStats.edges++;
-              });
-            });
-          });
-        }catch(e){console.log('Market fetch error:',e)}
-        await new Promise(r=>setTimeout(r,250)); // rate limit courtesy
+        const mktsStr=chunk.join(',');
+        const data=await apiFetch(
+          `https://api.the-odds-api.com/v4/sports/${sport.key}/events/${event.id}/odds?apiKey=${S.apiKey}&regions=us&markets=${mktsStr}&oddsFormat=american`,
+          sport.name+' '+matchLabel+' markets'
+        );
+        
+        if(data)findEdges(data,sport,event,null,allEdges);
+        await new Promise(r=>setTimeout(r,200));
       }
-      await new Promise(r=>setTimeout(r,300));
+      await new Promise(r=>setTimeout(r,150));
     }
   }
 
@@ -371,7 +405,7 @@ async function runScan(){
   allEdges.sort((a,b)=>b.ev-a.ev);
   S.edges=allEdges;
   S.scanning=false;S.scanProgress=100;
-  S.scanStatus='✅ Complete — '+allEdges.length+' edges found';
+  S.scanStatus=scanAbort?'⚠️ Scan stopped — '+allEdges.length+' edges found':'✅ Complete — '+allEdges.length+' edges found';
   S.lastScan=new Date().toLocaleString();
   save();render();
 }
@@ -406,9 +440,20 @@ function render(){
     if(S.scanning){
       h+='<div class="prog"><div class="prog-bar" style="width:'+S.scanProgress+'%"></div></div>';
       h+='<div class="status" style="background:rgba(0,255,170,.05);color:var(--g)">'+S.scanStatus+'</div>';
+      if(S.apiRemaining!=='?')h+='<div style="text-align:center;font-size:9px;color:#888;margin-bottom:6px;font-family:var(--mono)">API: '+S.apiRemaining+' requests remaining</div>';
       h+='<button class="scan-btn stop" onclick="scanAbort=true">⬛ STOP SCAN</button>';
     }else{
-      if(S.lastScan)h+='<div style="text-align:center;font-size:9px;color:#555;margin-bottom:6px;font-family:var(--mono)">Last scan: '+S.lastScan+'</div>';
+      if(S.lastScan){
+        h+='<div style="text-align:center;font-size:9px;color:#555;margin-bottom:6px;font-family:var(--mono)">Last scan: '+S.lastScan;
+        if(S.apiRemaining!=='?')h+=' · API: '+S.apiRemaining+' remaining';
+        h+='</div>';
+      }
+      // Scan mode selector
+      h+='<div class="filter-row" style="margin-bottom:8px;justify-content:center">';
+      h+='<button class="filter-btn'+(S.scanMode==='quick'?' active':'')+'" onclick="S.scanMode=\'quick\';save();render()">⚡ QUICK</button>';
+      h+='<button class="filter-btn'+(S.scanMode==='full'?' active':'')+'" onclick="S.scanMode=\'full\';save();render()">🔬 FULL</button>';
+      h+='</div>';
+      h+='<div style="text-align:center;font-size:9px;color:#555;margin-bottom:8px;font-family:var(--mono)">'+(S.scanMode==='quick'?'Quick: 3 events/sport, fewer API calls':'Full: 8 events/sport, deeper scan')+'</div>';
       h+='<button class="scan-btn go" onclick="runScan()">⚡ AUTO-SCAN ALL MARKETS FOR +EV EDGES</button>';
     }
 
@@ -497,10 +542,20 @@ function render(){
     }
 
     // Scan stats summary
-    if(S.scanStats.sports){
+    if(S.scanStats.sports||S.scanLog.length){
       h+='<div style="text-align:center;font-size:9px;color:#444;padding:8px;font-family:var(--mono)">';
-      h+='Scanned: '+S.scanStats.sports+' sports · '+S.scanStats.events+' events · '+S.scanStats.markets+' markets · '+S.scanStats.edges+' edges';
+      if(S.scanStats.sports)h+='Scanned: '+S.scanStats.sports+' sports · '+S.scanStats.events+' events · '+S.scanStats.markets+' markets · '+S.scanStats.edges+' edges';
       h+='</div>';
+      
+      // Scan log (collapsible)
+      if(S.scanLog.length){
+        h+='<details style="margin-top:4px"><summary style="font-size:9px;color:#555;cursor:pointer;font-family:var(--mono);text-align:center">📋 Scan Log ('+S.scanLog.length+' entries)</summary>';
+        h+='<div style="background:rgba(0,0,0,.3);border-radius:8px;padding:10px;margin-top:6px;max-height:200px;overflow-y:auto">';
+        S.scanLog.forEach(log=>{
+          h+='<div style="font-size:9px;color:#888;font-family:var(--mono);padding:2px 0">'+log+'</div>';
+        });
+        h+='</div></details>';
+      }
     }
   }
 
