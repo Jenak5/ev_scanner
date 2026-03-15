@@ -10,51 +10,52 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#060810;--card:rgba(255,255,255,0.015);--border:rgba(255,255,255,0.04);--g:#00ffaa;--y:#ffd600;--r:#ff1744;--text:#d8dae5;--muted:#3a3a4a;--mono:'DM Mono',monospace;--body:'Space Grotesk',sans-serif}
-html,body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden}
+:root{--bg:#060810;--card:rgba(255,255,255,0.025);--border:rgba(255,255,255,0.07);--g:#00ffaa;--y:#ffd600;--r:#ff1744;--text:#e8eaf0;--muted:#8890a0;--dim:#607080;--mono:'DM Mono',monospace;--body:'Space Grotesk',sans-serif}
+html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;min-height:100vh;overflow-x:hidden}
 input,select,button{font-family:var(--mono);outline:none}
-::placeholder{color:#2a2a3a}
+::placeholder{color:#556}
 .app{max-width:780px;margin:0 auto;padding:16px 14px;position:relative;z-index:1}
 .grid-bg{position:fixed;inset:0;opacity:.02;background-image:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(0,255,170,.3) 59px,rgba(0,255,170,.3) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(0,255,170,.3) 59px,rgba(0,255,170,.3) 60px);pointer-events:none}
-.hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid rgba(0,255,170,.06)}
-.logo{font-size:22px;font-weight:700;background:linear-gradient(135deg,#00ffaa,#76ff03);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.tabs{display:flex;gap:2px}
-.tab{padding:7px 12px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--border);background:transparent;color:#444}
-.tab.on{background:rgba(0,255,170,.08);border-color:rgba(0,255,170,.2);color:var(--g)}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid rgba(0,255,170,.08)}
+.logo{font-size:24px;font-weight:700;background:linear-gradient(135deg,#00ffaa,#76ff03);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tabs{display:flex;gap:3px}
+.tab{padding:9px 16px;border-radius:6px;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;border:1px solid var(--border);background:transparent;color:#8890a0}
+.tab.on{background:rgba(0,255,170,.1);border-color:rgba(0,255,170,.25);color:var(--g)}
 .row{display:grid;gap:8px;margin-bottom:14px}
 .r2{grid-template-columns:1fr 1fr}.r3{grid-template-columns:1fr 1fr 1fr}.r4{grid-template-columns:repeat(4,1fr)}
-.box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-.lbl{display:block;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;font-family:var(--mono)}
-.val{font-size:18px;font-weight:800;font-family:var(--mono);text-align:center}
-.vl{font-size:7px;letter-spacing:2px;color:var(--muted);text-align:center;margin-bottom:2px;font-family:var(--mono)}
-.inp{width:100%;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:#fff;font-size:12px}
-.chip{font-size:9px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;letter-spacing:.5px;border:1px solid var(--border);background:transparent;color:#444}
-.chip.on{background:rgba(0,255,170,.08);border-color:rgba(0,255,170,.15);color:var(--g)}
-.btn-g{width:100%;padding:14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:1px;background:linear-gradient(135deg,rgba(0,255,170,.12),rgba(118,255,3,.06));border:1px solid rgba(0,255,170,.2);color:var(--g)}
+.box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.lbl{display:block;font-size:11px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;font-family:var(--mono)}
+.val{font-size:20px;font-weight:800;font-family:var(--mono);text-align:center}
+.vl{font-size:10px;letter-spacing:2px;color:var(--muted);text-align:center;margin-bottom:3px;font-family:var(--mono)}
+.inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:7px;padding:11px 13px;color:#fff;font-size:15px}
+.chip{font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:700;letter-spacing:.5px;border:1px solid var(--border);background:transparent;color:#8890a0}
+.chip.on{background:rgba(0,255,170,.1);border-color:rgba(0,255,170,.2);color:var(--g)}
+.btn-g{width:100%;padding:16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;letter-spacing:1px;background:linear-gradient(135deg,rgba(0,255,170,.12),rgba(118,255,3,.06));border:1px solid rgba(0,255,170,.2);color:var(--g)}
 .btn-g:hover{filter:brightness(1.1)}
-.btn-scan{width:100%;padding:16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;letter-spacing:2px;background:linear-gradient(135deg,rgba(0,255,170,.15),rgba(255,214,0,.08));border:1px solid rgba(0,255,170,.25);color:var(--g);position:relative;overflow:hidden}
+.btn-scan{width:100%;padding:18px;border-radius:12px;font-weight:700;font-size:16px;cursor:pointer;letter-spacing:2px;background:linear-gradient(135deg,rgba(0,255,170,.15),rgba(255,214,0,.08));border:1px solid rgba(0,255,170,.25);color:var(--g);position:relative;overflow:hidden}
 .btn-scan:disabled{opacity:.5;cursor:wait}
 .btn-scan .pulse{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(0,255,170,.1),transparent);animation:scan 1.5s infinite}
 @keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.edge-card{border-radius:10px;padding:14px 16px;margin-bottom:8px;position:relative;cursor:pointer}
-.grade{position:absolute;top:10px;right:12px;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;font-family:var(--mono)}
-.mets{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.met{background:rgba(0,0,0,.25);border-radius:6px;padding:6px 10px;text-align:center;min-width:62px}
-.met-l{font-size:7px;letter-spacing:1px;color:var(--muted);font-family:var(--mono)}
-.met-v{font-size:12px;font-weight:700;font-family:var(--mono)}
-.books{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
-.book{font-size:8px;padding:2px 6px;border-radius:3px;background:rgba(255,255,255,.03);border:1px solid var(--border);color:#888;font-family:var(--mono)}
-.book.best{background:rgba(0,255,170,.06);border-color:rgba(0,255,170,.15);color:var(--g)}
-.slip{background:rgba(0,255,170,.03);border:1px solid rgba(0,255,170,.1);border-radius:10px;padding:14px 16px;margin-bottom:14px}
-.slip-t{font-size:10px;font-weight:700;color:var(--g);letter-spacing:2px;margin-bottom:8px;font-family:var(--mono)}
-.slip-r{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px}
-.setup{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
-.setup-t{font-size:11px;font-weight:700;color:#fff;margin-bottom:12px;font-family:var(--mono)}
-.status{text-align:center;padding:8px;border-radius:8px;font-size:11px;margin-bottom:12px;font-family:var(--mono)}
-.footer{text-align:center;font-size:8px;color:#1a1a2a;padding:20px 0;font-family:var(--mono)}
-.empty{text-align:center;padding:40px 20px;border:1px dashed var(--border);border-radius:10px;margin-bottom:16px}
-.prog{height:3px;background:var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden}
+.edge-card{border-radius:12px;padding:16px 18px;margin-bottom:10px;position:relative;cursor:pointer}
+.grade{position:absolute;top:12px;right:14px;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;font-family:var(--mono)}
+.mets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.met{background:rgba(0,0,0,.3);border-radius:8px;padding:8px 12px;text-align:center;min-width:68px}
+.met-l{font-size:10px;letter-spacing:1px;color:var(--muted);font-family:var(--mono)}
+.met-v{font-size:15px;font-weight:700;font-family:var(--mono)}
+.books{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.book{font-size:11px;padding:4px 10px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:#b0b8c8;font-family:var(--mono)}
+.book.best{background:rgba(0,255,170,.08);border-color:rgba(0,255,170,.2);color:var(--g)}
+.slip{background:rgba(0,255,170,.04);border:1px solid rgba(0,255,170,.12);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.slip-t{font-size:13px;font-weight:700;color:var(--g);letter-spacing:2px;margin-bottom:10px;font-family:var(--mono)}
+.slip-r{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px}
+.setup{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.setup-t{font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;font-family:var(--mono)}
+.status{text-align:center;padding:10px;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:var(--mono)}
+.footer{text-align:center;font-size:13px;color:#99a;padding:20px 0;font-family:var(--mono)}
+.empty{text-align:center;padding:40px 20px;border:1px dashed var(--border);border-radius:12px;margin-bottom:16px;font-size:14px;color:var(--muted)}
+.prog{height:4px;background:var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden}
 .prog-bar{height:100%;background:var(--g);border-radius:2px;transition:width .3s}
+.sm-btn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#99a8b8;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;letter-spacing:1px;font-weight:700}
 </style>
 </head>
 <body>
@@ -304,7 +305,7 @@ function render(){
 
   let h='';
   // Header
-  h+='<div class="hdr"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)"></div><span style="font-size:9px;letter-spacing:4px;color:var(--muted)">AUTO-SCAN</span></div><div class="logo">+EV Scanner Pro</div></div>';
+  h+='<div class="hdr"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)"></div><span style="font-size:11px;letter-spacing:4px;color:var(--muted)">AUTO-SCAN</span></div><div class="logo">+EV Scanner Pro</div></div>';
   h+='<div class="tabs">';
   [['scan','SCAN'],['track','TRACK'],['set','SET']].forEach(([k,l])=>{h+='<button class="tab'+(S.tab===k?' on':'')+'" onclick="S.tab=\''+k+'\';render()">'+l+'</button>'});
   h+='</div></div>';
@@ -313,8 +314,8 @@ function render(){
   if(S.tab==='scan'){
     if(!S.apiKey){
       h+='<div class="setup"><div class="setup-t">🔑 API Key Required</div>';
-      h+='<p style="font-size:12px;color:#888;line-height:1.6;margin-bottom:12px">To auto-scan, you need your API key from <strong style="color:var(--g)">the-odds-api.com</strong>.</p>';
-      h+='<p style="font-size:11px;color:#666">Go to the SET tab to paste your key.</p></div>';
+      h+='<p style="font-size:14px;color:#aab;line-height:1.6;margin-bottom:12px">To auto-scan, you need your API key from <strong style="color:var(--g)">the-odds-api.com</strong>.</p>';
+      h+='<p style="font-size:13px;color:#99a">Go to the SET tab to paste your key.</p></div>';
     } else {
       // Config
       h+='<div class="row r2"><div class="box"><label class="lbl">BANKROLL</label><div style="display:flex;align-items:baseline;gap:3px"><span style="color:var(--g);font-size:13px;font-weight:700">$</span><input id="bankrollInput" type="number" style="background:none;border:none;color:#fff;font-size:20px;font-weight:800;font-family:var(--mono);width:100%" value="'+S.bankroll+'" onblur="S.bankroll=+this.value;save()"></div></div>';
@@ -328,7 +329,7 @@ function render(){
       // Progress
       if(S.scanning||S.scanProgress>0){
         h+='<div style="margin-top:12px"><div class="prog"><div class="prog-bar" style="width:'+S.scanProgress+'%"></div></div>';
-        h+='<div style="font-size:10px;color:#556;text-align:center;font-family:var(--mono)">'+S.scanStatus+'</div></div>';
+        h+='<div style="font-size:13px;color:#99a;text-align:center;font-family:var(--mono)">'+S.scanStatus+'</div></div>';
       }
 
       // Stats
@@ -350,7 +351,7 @@ function render(){
         h+='</div>';
 
         // Sort
-        h+='<div style="display:flex;gap:4px;margin-bottom:10px;align-items:center"><span style="font-size:8px;color:#333;letter-spacing:1px;font-family:var(--mono)">SORT:</span>';
+        h+='<div style="display:flex;gap:4px;margin-bottom:10px;align-items:center"><span style="font-size:14px;color:#aab;letter-spacing:1px;font-family:var(--mono)">SORT:</span>';
         [['ev','EV'],['fairProb','PROB'],['kelly','KELLY']].forEach(([k,l])=>{h+='<button class="chip'+(S.sortBy===k?' on':'')+'" style="font-size:8px;padding:3px 10px" onclick="S.sortBy=\''+k+'\';render()">'+l+'</button>'});
         h+='</div>';
 
@@ -363,11 +364,11 @@ function render(){
 
           h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">';
           h+='<span style="font-size:9px;color:'+edge.grade.c+';font-weight:700;font-family:var(--mono)">#'+(i+1)+'</span>';
-          h+='<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:'+edge.sportColor+'15;color:'+edge.sportColor+';border:1px solid '+edge.sportColor+'22">'+edge.sportEmoji+' '+edge.sport+'</span></div>';
+          h+='<span style="font-size:11px;padding:3px 8px;border-radius:3px;background:'+edge.sportColor+'15;color:'+edge.sportColor+';border:1px solid '+edge.sportColor+'22">'+edge.sportEmoji+' '+edge.sport+'</span></div>';
 
-          h+='<div style="font-size:14px;font-weight:700;color:#fff">'+edge.player+'</div>';
-          h+='<div style="font-size:10px;color:#556;margin-bottom:2px">'+edge.event+'</div>';
-          h+='<div style="font-size:11px;color:#778;margin-bottom:10px">'+edge.direction+' '+edge.line+' '+edge.stat+' @ <span style="color:var(--g)">'+edge.bestBook+'</span> ('+(edge.bestPrice>0?'+':'')+edge.bestPrice+')</div>';
+          h+='<div style="font-size:17px;font-weight:700;color:#fff">'+edge.player+'</div>';
+          h+='<div style="font-size:13px;color:#99a;margin-bottom:2px">'+edge.event+'</div>';
+          h+='<div style="font-size:14px;color:#aab;margin-bottom:10px">'+edge.direction+' '+edge.line+' '+edge.stat+' @ <span style="color:var(--g)">'+edge.bestBook+'</span> ('+(edge.bestPrice>0?'+':'')+edge.bestPrice+')</div>';
 
           h+='<div class="mets">';
           [['FAIR',(edge.fairProb*100).toFixed(1)+'%',pc],['BOOK',(edge.bookProb*100).toFixed(1)+'%','#888'],['EV',evStr,edge.grade.c],['KELLY',edge.kelly.toFixed(1)+'%','#c6ff00'],['WAGER','$'+edge.wager.toFixed(2),'var(--y)']].forEach(([ml,mv,mc])=>{
@@ -378,15 +379,15 @@ function render(){
           // Expanded: show all books
           if(S.expandedIdx===i){
             h+='<div style="padding-top:8px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">';
-            h+='<div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;font-family:var(--mono)">ODDS BY BOOK</div>';
+            h+='<div style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;font-family:var(--mono)">ODDS BY BOOK</div>';
             h+='<div class="books">';
             edge.allBooks.forEach(b=>{
               const isBest=b.name===edge.bestBook;
               h+='<span class="book'+(isBest?' best':'')+'">'+b.name+': '+(b.price>0?'+':'')+b.price+'</span>';
             });
             h+='</div>';
-            h+='<div style="font-size:9px;color:#445;margin-top:8px;line-height:1.6;font-family:var(--mono)">Edge: Fair prob '+(edge.fairProb*100).toFixed(1)+'% vs book implied '+(edge.bookProb*100).toFixed(1)+'% = '+(((edge.fairProb-edge.bookProb)*100).toFixed(1))+'% mispricing</div>';
-            h+='<div style="font-size:8px;color:#333;margin-top:4px">'+edge.time+'</div>';
+            h+='<div style="font-size:12px;color:#889;margin-top:8px;line-height:1.6;font-family:var(--mono)">Edge: Fair prob '+(edge.fairProb*100).toFixed(1)+'% vs book implied '+(edge.bookProb*100).toFixed(1)+'% = '+(((edge.fairProb-edge.bookProb)*100).toFixed(1))+'% mispricing</div>';
+            h+='<div style="font-size:14px;color:#aab;margin-top:4px">'+edge.time+'</div>';
             h+='</div>';
           }
           h+='</div>';
@@ -398,10 +399,10 @@ function render(){
           rec.slice(0,8).forEach(e=>{
             h+='<div class="slip-r"><span style="color:#bbb">'+e.player+' <span style="color:#555">'+e.direction+' '+e.line+' '+e.stat+'</span></span><span style="font-weight:700;color:'+e.grade.c+';font-family:var(--mono)">'+e.grade.l+' +'+e.ev.toFixed(2)+' @ '+e.bestBook+'</span></div>';
           });
-          h+='<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid rgba(0,255,170,.08)"><span style="font-size:10px;color:#556">Total wager</span><span style="font-size:16px;font-weight:800;color:var(--y);font-family:var(--mono)">$'+recW.toFixed(2)+'</span></div></div>';
+          h+='<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid rgba(0,255,170,.08)"><span style="font-size:13px;color:#99a">Total wager</span><span style="font-size:16px;font-weight:800;color:var(--y);font-family:var(--mono)">$'+recW.toFixed(2)+'</span></div></div>';
         }
       } else if(!S.scanning&&S.scanProgress===0){
-        h+='<div class="empty" style="margin-top:16px"><div style="font-size:28px;opacity:.3">🔍</div><div style="font-size:11px;color:var(--muted);margin-top:8px">Hit the scan button to find edges across all sports</div></div>';
+        h+='<div class="empty" style="margin-top:16px"><div style="font-size:32px;opacity:.4">🔍</div><div style="font-size:14px;color:var(--muted);margin-top:8px">Hit the scan button to find edges across all sports</div></div>';
       }
     }
   }
@@ -415,7 +416,7 @@ function render(){
       h+='<div class="box"><div class="vl">'+s.l+'</div><div class="val" style="color:'+s.c+'">'+s.v+'</div></div>'});
     h+='</div>';
 
-    if(!tp)h+='<div class="empty"><div style="font-size:11px;color:var(--muted)">No results logged yet.</div></div>';
+    if(!tp)h+='<div class="empty"><div style="font-size:14px;color:var(--muted)">No results logged yet.</div></div>';
 
     S.results.slice().reverse().forEach(r=>{
       h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:'+(r.hit?'rgba(0,255,170,.03)':'rgba(255,23,68,.03)')+';border:1px solid '+(r.hit?'rgba(0,255,170,.08)':'rgba(255,23,68,.08)')+';border-radius:8px;margin-bottom:4px;font-size:11px">';
@@ -429,17 +430,17 @@ function render(){
   // ═══ SET TAB ═══
   if(S.tab==='set'){
     h+='<div class="setup"><div class="setup-t">🔑 The Odds API Key</div>';
-    h+='<p style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.5">Paid plan from <strong style="color:var(--g)">the-odds-api.com</strong> — enables auto-scanning player props across all sports.</p>';
+    h+='<p style="font-size:13px;color:#99a;margin-bottom:8px;line-height:1.5">Paid plan from <strong style="color:var(--g)">the-odds-api.com</strong> — enables auto-scanning player props across all sports.</p>';
     h+='<label class="lbl">API KEY</label><input class="inp" id="apiKeyInput" type="text" value="'+S.apiKey+'" placeholder="Paste your API key here">';
     h+='<button style="padding:8px 20px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.15);color:var(--g);margin-top:8px;font-family:var(--mono)" onclick="saveApiKey()">SAVE KEY</button>';
     h+='<div id="apiStatus" style="margin-top:8px;font-size:10px;font-family:var(--mono)"></div></div>';
 
     h+='<div class="setup"><div class="setup-t">📊 What Gets Scanned</div>';
-    h+='<p style="font-size:11px;color:#666;line-height:1.6">The auto-scanner pulls player props from:<br><strong style="color:#aaa">DraftKings, FanDuel, BetMGM, Caesars, Bet365, BetRivers</strong></p>';
-    h+='<p style="font-size:10px;color:#555;margin-top:8px;line-height:1.5">NBA: points, rebounds, assists, 3PM, blocks, steals, PRA<br>NFL: pass/rush/rec yards, TDs, receptions<br>MLB: hits, total bases, HRs, RBIs, strikeouts<br>NHL: points, goals, assists, SOG<br>EPL: anytime goalscorer<br>+ Game totals and spreads for all sports</p></div>';
+    h+='<p style="font-size:13px;color:#99a;line-height:1.6">The auto-scanner pulls player props from:<br><strong style="color:#aaa">DraftKings, FanDuel, BetMGM, Caesars, Bet365, BetRivers</strong></p>';
+    h+='<p style="font-size:13px;color:#889;margin-top:8px;line-height:1.5">NBA: points, rebounds, assists, 3PM, blocks, steals, PRA<br>NFL: pass/rush/rec yards, TDs, receptions<br>MLB: hits, total bases, HRs, RBIs, strikeouts<br>NHL: points, goals, assists, SOG<br>EPL: anytime goalscorer<br>+ Game totals and spreads for all sports</p></div>';
 
     h+='<div class="setup"><div class="setup-t">📱 Install as App</div>';
-    h+='<p style="font-size:11px;color:#666;line-height:1.5"><strong>iPhone/iPad:</strong> Share button → Add to Home Screen<br><strong>Android:</strong> Three-dot menu → Add to Home Screen</p></div>';
+    h+='<p style="font-size:13px;color:#99a;line-height:1.5"><strong>iPhone/iPad:</strong> Share button → Add to Home Screen<br><strong>Android:</strong> Three-dot menu → Add to Home Screen</p></div>';
 
     h+='<div class="setup"><div class="setup-t">🗑 Reset</div>';
     h+='<button style="padding:8px 16px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);font-family:var(--mono)" onclick="if(confirm(\'Factory reset?\'))localStorage.removeItem(\'evpro2\'),location.reload()">FACTORY RESET</button></div>';
