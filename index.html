@@ -80,7 +80,7 @@ if(!S.apiKey){['evpro2','evpro'].forEach(function(k){try{var o=JSON.parse(localS
 
 // Use proxy for /events endpoints, direct for /odds
 function apiUrl(path){return PROXY+encodeURIComponent('https://api.the-odds-api.com'+path)}
-function directUrl(path){return 'https://api.the-odds-api.com'+path}
+function directUrl(path){return PROXY+encodeURIComponent('https://api.the-odds-api.com'+path)}
 
 var SPORTS=[
   {key:'basketball_nba',name:'NBA',e:'\u{1F3C0}',c:'#ff6b00',
