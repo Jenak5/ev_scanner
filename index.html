@@ -98,14 +98,24 @@ const SPORTS_MAP={
     'player_rebounds_assists','player_blocks_steals','player_double_double','player_triple_double',
     'player_first_basket','player_field_goals','player_frees_made',
     'player_points_q1','player_rebounds_q1','player_assists_q1'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_q1','h2h_q2','h2h_q3','h2h_q4',
+    'spreads_h1','spreads_h2','spreads_q1','spreads_q2','spreads_q3','spreads_q4',
+    'totals_h1','totals_h2','totals_q1','totals_q2','totals_q3','totals_q4',
+    'team_totals','alternate_spreads','alternate_totals'
   ]},
   basketball_ncaab:{name:'NCAAB',e:'🏀',c:'#ff9e44',props:[
     'player_points','player_rebounds','player_assists','player_threes','player_blocks','player_steals',
     'player_points_rebounds_assists','player_points_rebounds','player_points_assists','player_rebounds_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2',
+    'spreads_h1','spreads_h2','totals_h1','totals_h2','team_totals'
   ]},
   basketball_wnba:{name:'WNBA',e:'🏀',c:'#e040fb',props:[
     'player_points','player_rebounds','player_assists','player_threes','player_blocks','player_steals',
     'player_points_rebounds_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','spreads_h1','totals_h1','team_totals'
   ]},
   americanfootball_nfl:{name:'NFL',e:'🏈',c:'#4ecdc4',props:[
     'player_pass_yds','player_rush_yds','player_reception_yds','player_pass_tds','player_receptions',
@@ -114,10 +124,18 @@ const SPORTS_MAP={
     'player_pass_rush_yds','player_rush_reception_yds','player_pass_rush_reception_yds',
     'player_sacks','player_tackles_assists','player_solo_tackles','player_kicking_points','player_field_goals',
     'player_pass_longest_completion','player_rush_longest','player_reception_longest'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_q1','h2h_q2','h2h_q3','h2h_q4',
+    'spreads_h1','spreads_h2','spreads_q1','spreads_q2','spreads_q3','spreads_q4',
+    'totals_h1','totals_h2','totals_q1','totals_q2','totals_q3','totals_q4',
+    'team_totals','alternate_spreads','alternate_totals'
   ]},
   americanfootball_ncaaf:{name:'NCAAF',e:'🏈',c:'#66bb6a',props:[
     'player_pass_yds','player_rush_yds','player_reception_yds','player_pass_tds','player_receptions',
     'player_rush_attempts','player_anytime_td','player_pass_completions','player_rush_tds','player_reception_tds'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2',
+    'spreads_h1','spreads_h2','totals_h1','totals_h2','team_totals'
   ]},
   baseball_mlb:{name:'MLB',e:'⚾',c:'#e63946',props:[
     'batter_hits','batter_total_bases','batter_home_runs','batter_rbis','batter_runs_scored',
@@ -125,37 +143,69 @@ const SPORTS_MAP={
     'batter_strikeouts','batter_stolen_bases','batter_first_home_run',
     'pitcher_strikeouts','pitcher_outs','pitcher_hits_allowed','pitcher_walks','pitcher_earned_runs',
     'pitcher_record_a_win'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_1st_5_innings','h2h_1st_3_innings','h2h_1st_1_innings',
+    'spreads_1st_5_innings','spreads_1st_3_innings',
+    'totals_1st_5_innings','totals_1st_3_innings','totals_1st_1_innings',
+    'team_totals','alternate_spreads','alternate_totals'
   ]},
   icehockey_nhl:{name:'NHL',e:'🏒',c:'#457b9d',props:[
     'player_points','player_goals','player_assists','player_shots_on_goal','player_blocked_shots',
     'player_power_play_points','player_total_saves',
     'player_goal_scorer_anytime','player_goal_scorer_first','player_goal_scorer_last'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_p1','h2h_p2','h2h_p3',
+    'spreads_p1','spreads_p2','spreads_p3',
+    'totals_p1','totals_p2','totals_p3',
+    'team_totals','alternate_spreads','alternate_totals'
   ]},
   soccer_epl:{name:'EPL',e:'⚽',c:'#6a0572',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_last_goal_scorer',
     'player_shots_on_target','player_shots','player_assists','player_to_receive_card'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
+    'spreads_h1','totals_h1','team_totals',
+    'alternate_totals_corners','alternate_spreads_corners','double_chance'
   ]},
   soccer_usa_mls:{name:'MLS',e:'⚽',c:'#1a237e',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
   ]},
   soccer_spain_la_liga:{name:'LA LIGA',e:'⚽',c:'#f57f17',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
+    'spreads_h1','totals_h1','team_totals','double_chance'
   ]},
   soccer_germany_bundesliga:{name:'BUNDES',e:'⚽',c:'#c62828',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
   ]},
   soccer_italy_serie_a:{name:'SERIE A',e:'⚽',c:'#1565c0',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
   ]},
   soccer_france_ligue_one:{name:'LIGUE 1',e:'⚽',c:'#0277bd',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
   ]},
   soccer_uefa_champs_league:{name:'UCL',e:'⚽',c:'#1a237e',props:[
     'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
   ]},
-  mma_mixed_martial_arts:{name:'MMA',e:'🥊',c:'#d90429',props:[]},
-  golf_pga_championship:{name:'GOLF',e:'⛳',c:'#2d6a4f',props:[]},
-  tennis_atp_french_open:{name:'TENNIS',e:'🎾',c:'#c6a700',props:[]}
+  mma_mixed_martial_arts:{name:'MMA',e:'🥊',c:'#d90429',props:[],gameMarkets:['h2h','spreads','totals']},
+  golf_pga_championship:{name:'GOLF',e:'⛳',c:'#2d6a4f',props:[],gameMarkets:['h2h','outrights']},
+  tennis_atp_french_open:{name:'TENNIS',e:'🎾',c:'#c6a700',props:[],gameMarkets:['h2h','spreads','totals']}
 };
 
 // ═══ MARKET NAME MAPPING ═══
@@ -189,7 +239,26 @@ const MKT_NAMES={
   player_goal_scorer_anytime:'Anytime Goal',player_goal_scorer_first:'1st Goal',player_goal_scorer_last:'Last Goal',
   player_first_goal_scorer:'1st Goal',player_last_goal_scorer:'Last Goal',
   player_shots_on_target:'Shots on Target',player_shots:'Shots',
-  player_to_receive_card:'Card',player_to_receive_red_card:'Red Card'
+  player_to_receive_card:'Card',player_to_receive_red_card:'Red Card',
+  // Game-level markets
+  h2h:'Moneyline',spreads:'Spread',totals:'Total',outrights:'Futures',
+  h2h_h1:'1H ML',h2h_h2:'2H ML',h2h_q1:'Q1 ML',h2h_q2:'Q2 ML',h2h_q3:'Q3 ML',h2h_q4:'Q4 ML',
+  h2h_p1:'P1 ML',h2h_p2:'P2 ML',h2h_p3:'P3 ML',
+  h2h_3_way:'3-Way ML',h2h_3_way_h1:'1H 3-Way',h2h_3_way_q1:'Q1 3-Way',
+  h2h_1st_1_innings:'1st Inn ML',h2h_1st_3_innings:'1st 3 Inn ML',h2h_1st_5_innings:'F5 ML',h2h_1st_7_innings:'1st 7 Inn ML',
+  spreads_h1:'1H Spread',spreads_h2:'2H Spread',
+  spreads_q1:'Q1 Spread',spreads_q2:'Q2 Spread',spreads_q3:'Q3 Spread',spreads_q4:'Q4 Spread',
+  spreads_p1:'P1 Spread',spreads_p2:'P2 Spread',spreads_p3:'P3 Spread',
+  spreads_1st_5_innings:'F5 Spread',spreads_1st_3_innings:'1st 3 Inn Spread',
+  totals_h1:'1H Total',totals_h2:'2H Total',
+  totals_q1:'Q1 Total',totals_q2:'Q2 Total',totals_q3:'Q3 Total',totals_q4:'Q4 Total',
+  totals_p1:'P1 Total',totals_p2:'P2 Total',totals_p3:'P3 Total',
+  totals_1st_5_innings:'F5 Total',totals_1st_3_innings:'1st 3 Inn Total',totals_1st_1_innings:'1st Inn Total',
+  team_totals:'Team Total',alternate_spreads:'Alt Spread',alternate_totals:'Alt Total',
+  alternate_team_totals:'Alt Team Total',
+  btts:'BTTS',draw_no_bet:'Draw No Bet',double_chance:'Double Chance',
+  alternate_totals_corners:'Corners O/U',alternate_spreads_corners:'Corners Spread',
+  alternate_totals_cards:'Cards O/U',alternate_spreads_cards:'Cards Spread'
 };
 function formatMarket(m){return MKT_NAMES[m]||m.replace(/^(player_|batter_|pitcher_)/,'').replace(/_/g,' ')}
 
@@ -249,13 +318,15 @@ async function runFullScan(){
       const eventsUrl='https://api.the-odds-api.com/v4/sports/'+sportKey+'/events?apiKey='+S.apiKey;
       const eventsRes=await fetch(eventsUrl);
       if(!eventsRes.ok)continue;
-      const events=await eventsRes.json();
+      const rawEvents=await eventsRes.json();
+      // Filter to upcoming only — skip games that already started
+      const now=new Date().getTime();
+      const events=rawEvents.filter(e=>new Date(e.commence_time).getTime()>now);
       if(!events.length)continue;
 
       // Step 2: For sports with props, scan each event
       if(sport.props.length>0){
-        // Limit to first 3 events to conserve API calls
-        const eventsToScan=events.slice(0,3);
+        const eventsToScan=events;// Paid plan — scan all upcoming
         for(let ei=0;ei<eventsToScan.length;ei++){
           const event=eventsToScan[ei];
           S.scanStatus='Scanning '+sport.name+': '+event.home_team+' vs '+event.away_team+'...';
@@ -364,48 +435,103 @@ async function runFullScan(){
         }
       }
 
-      // Also pull game-level odds for totals/spreads edges
-      try{
-        const oddsUrl='https://api.the-odds-api.com/v4/sports/'+sportKey+'/odds?apiKey='+S.apiKey+'&regions=us&markets=h2h,spreads,totals&oddsFormat=american';
-        const oddsRes=await fetch(oddsUrl);
-        if(oddsRes.ok){
-          const oddsData=await oddsRes.json();
-          oddsData.forEach(game=>{
-            if(!game.bookmakers||!game.bookmakers.length)return;
-            game.bookmakers.forEach(bk=>{
+      // ── GAME-LEVEL MARKETS: per-event fetch for halves, quarters, periods, alt lines, BTTS, etc. ──
+      const gameMarketsArr=sport.gameMarkets||[];
+      if(gameMarketsArr.length>0){
+        // Use same filtered upcoming events list
+        const gmEvents=events;// Paid plan — scan all upcoming
+        for(let gi=0;gi<gmEvents.length;gi++){
+          const gev=gmEvents[gi];
+          S.scanStatus='Scanning '+sport.name+' game markets: '+gev.home_team+' vs '+gev.away_team+'...';
+          S.scanProgress=((si+(gi+.5)/Math.max(gmEvents.length,1))/totalSteps)*100;render();
+          try{
+            const gmUrl='https://api.the-odds-api.com/v4/sports/'+sportKey+'/events/'+gev.id+'/odds?apiKey='+S.apiKey+'&regions=us&markets='+gameMarketsArr.join(',')+'&oddsFormat=american';
+            const gmRes=await fetch(gmUrl);
+            if(!gmRes.ok)continue;
+            const gmData=await gmRes.json();
+            if(!gmData.bookmakers)continue;
+
+            // Collect all outcomes per market across books
+            const mktLines={};// {marketKey: {outcomeKey: [{book,price,point,name}]}}
+            gmData.bookmakers.forEach(bk=>{
               (bk.markets||[]).forEach(mkt=>{
-                if(mkt.key==='totals'){
-                  const over=mkt.outcomes.find(o=>o.name==='Over');
-                  const under=mkt.outcomes.find(o=>o.name==='Under');
-                  if(over&&under){
-                    const op=americanToProb(over.price),up=americanToProb(under.price);
-                    const total=op+up,fairO=op/total;
-                    if(fairO>.56||fairO<.44){
-                      const dir=fairO>.56?'OVER':'UNDER';
-                      const tp=dir==='OVER'?fairO:1-fairO;
-                      const bp=dir==='OVER'?americanToProb(over.price):americanToProb(under.price);
-                      const ev=calcEv(tp,.5);
-                      if(ev>=.02){
-                        const grade=getGrade(ev);
-                        const k=kellyF(tp,.5,S.kellyMult);
-                        allEdges.push({
-                          player:game.home_team+' vs '+game.away_team,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,
-                          stat:'Game Total',line:over.point,direction:dir,
-                          fairProb:tp,bookProb:bp,bestBook:bk.title,bestPrice:dir==='OVER'?over.price:under.price,
-                          ev,grade,kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,
-                          allBooks:[{name:bk.title,price:dir==='OVER'?over.price:under.price}],
-                          event:game.home_team+' vs '+game.away_team,
-                          time:new Date(game.commence_time).toLocaleString()
-                        });
-                      }
-                    }
-                  }
-                }
+                if(!mktLines[mkt.key])mktLines[mkt.key]={};
+                (mkt.outcomes||[]).forEach(o=>{
+                  // Build a unique key per outcome side
+                  let oKey=o.name;
+                  if(o.point!=null)oKey+='_'+o.point;
+                  if(!mktLines[mkt.key][oKey])mktLines[mkt.key][oKey]={name:o.name,point:o.point,books:[]};
+                  mktLines[mkt.key][oKey].books.push({book:bk.title,price:o.price});
+                });
               });
             });
-          });
+
+            // For each market, find cross-book edges
+            Object.keys(mktLines).forEach(mktKey=>{
+              const outcomes=mktLines[mktKey];
+              const oKeys=Object.keys(outcomes);
+              if(oKeys.length<2)return;
+
+              // Calculate fair probs via vig removal across ALL outcomes in this market
+              const avgImplied={};
+              oKeys.forEach(ok=>{
+                const probs=outcomes[ok].books.map(b=>americanToProb(b.price));
+                avgImplied[ok]=probs.reduce((a,b)=>a+b,0)/probs.length;
+              });
+              const totalImp=Object.values(avgImplied).reduce((a,b)=>a+b,0);
+              if(totalImp<=0)return;
+              const fairProbs={};
+              oKeys.forEach(ok=>{fairProbs[ok]=avgImplied[ok]/totalImp});
+
+              // Check each outcome for edge vs best available book price
+              oKeys.forEach(ok=>{
+                const oc=outcomes[ok];
+                if(!oc.books.length)return;
+                // Best book = lowest implied prob = highest payout
+                const bestBook=oc.books.reduce((best,b)=>americanToProb(b.price)<americanToProb(best.price)?b:best,oc.books[0]);
+                const bestBookProb=americanToProb(bestBook.price);
+                const fair=fairProbs[ok];
+                if(!fair||!bestBookProb||fair<=bestBookProb)return;
+
+                const ev=calcEv(fair,bestBookProb);
+                if(ev<.02)return;
+                const grade=getGrade(ev);
+                const k=kellyF(fair,bestBookProb,S.kellyMult);
+
+                // Build display name
+                let direction=oc.name;
+                let line=oc.point!=null?oc.point:'';
+                let displayName=gev.home_team+' vs '+gev.away_team;
+
+                // For spreads/totals with Over/Under
+                if(oc.name==='Over'||oc.name==='Under'){
+                  direction=oc.name.toUpperCase();
+                }
+                // For h2h/spreads with team names
+                if(oc.name===gev.home_team||oc.name===gev.away_team){
+                  displayName=oc.name;
+                  direction=oc.point!=null?(oc.point>0?'+'+oc.point:String(oc.point)):'ML';
+                }
+                // For BTTS / Yes-No
+                if(oc.name==='Yes'||oc.name==='No'){
+                  direction=oc.name.toUpperCase();
+                }
+
+                allEdges.push({
+                  player:displayName,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,
+                  stat:formatMarket(mktKey),line:line,direction:direction,
+                  fairProb:fair,bookProb:bestBookProb,bestBook:bestBook.book,bestPrice:bestBook.price,
+                  ev,grade,kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,
+                  allBooks:oc.books.map(b=>({name:b.book,price:b.price})),
+                  event:gev.home_team+' vs '+gev.away_team,
+                  time:new Date(gev.commence_time).toLocaleString()
+                });
+              });
+            });
+          }catch(e){console.log('Game market error:',e)}
+          await new Promise(r=>setTimeout(r,300));
         }
-      }catch(e){}
+      }
     }catch(e){console.log('Sport error:',e)}
   }
 
@@ -623,17 +749,17 @@ function render(){
     h+='<div id="apiStatus" style="margin-top:8px;font-size:10px;font-family:var(--mono)"></div></div>';
 
     h+='<div class="setup"><div class="setup-t">📊 What Gets Scanned (v3 — All Markets)</div>';
-    h+='<p style="font-size:13px;color:#99a;line-height:1.6">The auto-scanner pulls player props from:<br><strong style="color:#aaa">DraftKings, FanDuel, BetMGM, Caesars, Bet365, BetRivers</strong></p>';
+    h+='<p style="font-size:13px;color:#99a;line-height:1.6">The auto-scanner pulls player props + game markets from:<br><strong style="color:#aaa">DraftKings, FanDuel, BetMGM, Caesars, Bet365, BetRivers</strong></p>';
     h+='<p style="font-size:13px;color:#889;margin-top:8px;line-height:1.5">';
-    h+='<strong style="color:#ff6b35">NBA:</strong> pts, reb, ast, 3PM, blk, stl, TO, PRA, combos, Q1 props, 1st basket, dbl-dbl, trp-dbl<br>';
-    h+='<strong style="color:#ff9e44">NCAAB:</strong> pts, reb, ast, 3PM, blk, stl, PRA, combos<br>';
-    h+='<strong style="color:#e040fb">WNBA:</strong> pts, reb, ast, 3PM, blk, stl, PRA<br>';
-    h+='<strong style="color:#4ecdc4">NFL:</strong> pass/rush/rec yds, TDs, completions, sacks, tackles, kicking, longest<br>';
-    h+='<strong style="color:#66bb6a">NCAAF:</strong> pass/rush/rec yds, TDs, completions<br>';
-    h+='<strong style="color:#e63946">MLB:</strong> hits, TB, HR, RBI, runs, K, walks, doubles, SB, pitcher Ks/outs/ERA<br>';
-    h+='<strong style="color:#457b9d">NHL:</strong> pts, goals, ast, SOG, blocks, PP pts, saves, anytime goal<br>';
-    h+='<strong style="color:#6a0572">Soccer:</strong> EPL, MLS, La Liga, Bundesliga, Serie A, Ligue 1, UCL — goals, shots, assists, cards<br>';
-    h+='<strong style="color:#d90429">MMA/Golf/Tennis:</strong> game-level moneylines, spreads, totals</p></div>';
+    h+='<strong style="color:#ff6b35">NBA:</strong> pts, reb, ast, 3PM, blk, stl, combos, 1st basket + ML, spread, total, 1H, 2H, Q1-Q4, alt lines, team totals<br>';
+    h+='<strong style="color:#ff9e44">NCAAB:</strong> pts, reb, ast, 3PM, combos + ML, spread, total, 1H, 2H, team totals<br>';
+    h+='<strong style="color:#e040fb">WNBA:</strong> pts, reb, ast, 3PM, PRA + ML, spread, total, 1H, team totals<br>';
+    h+='<strong style="color:#4ecdc4">NFL:</strong> pass/rush/rec yds, TDs, sacks, tackles, kicking + ML, spread, total, 1H, 2H, Q1-Q4, alt lines<br>';
+    h+='<strong style="color:#66bb6a">NCAAF:</strong> pass/rush/rec yds, TDs + ML, spread, total, 1H, 2H, team totals<br>';
+    h+='<strong style="color:#e63946">MLB:</strong> hits, TB, HR, RBI, K, pitcher props + ML, spread, total, F5, 1st/3rd/5th innings, alt lines<br>';
+    h+='<strong style="color:#457b9d">NHL:</strong> pts, goals, ast, SOG, saves + ML, spread, total, P1-P3, alt lines, team totals<br>';
+    h+='<strong style="color:#6a0572">Soccer:</strong> EPL, MLS, La Liga, Bundesliga, Serie A, Ligue 1, UCL — goals, shots, cards + ML, spread, total, 1H, BTTS, draw no bet, double chance, corners<br>';
+    h+='<strong style="color:#d90429">MMA/Golf/Tennis:</strong> ML, spreads, totals, outrights</p></div>';
 
     h+='<div class="setup"><div class="setup-t">🎫 Custom Slip</div>';
     h+='<p style="font-size:13px;color:#99a;line-height:1.5">Tap the <span style="color:var(--slip);font-weight:700">+</span> button on any edge card to build your own parlay slip (up to 10 legs). View combined probability, EV, Kelly sizing, and potential payout in the SLIP tab.</p></div>';
