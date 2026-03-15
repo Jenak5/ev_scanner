@@ -98,7 +98,19 @@ let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgre
   mySlip:[],slipView:'rec'};
 
 function save(){try{localStorage.setItem('evpro3',JSON.stringify({apiKey:S.apiKey,bankroll:S.bankroll,kellyMult:S.kellyMult,edges:S.edges,minGrade:S.minGrade,lastScan:S.lastScan,scanStats:S.scanStats,scanMode:S.scanMode,mySlip:S.mySlip}))}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('evpro3'));if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.edges=d.edges||[];S.minGrade=d.minGrade||'C';S.lastScan=d.lastScan||null;S.scanStats=d.scanStats||{};S.scanMode=d.scanMode||'full';S.mySlip=d.mySlip||[]}}catch(e){}}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem('evpro3'));
+    if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.edges=d.edges||[];S.minGrade=d.minGrade||'C';S.lastScan=d.lastScan||null;S.scanStats=d.scanStats||{};S.scanMode=d.scanMode||'full';S.mySlip=d.mySlip||[]}
+    // Migrate API key from v2 if v3 has no key
+    if(!S.apiKey){
+      try{
+        const old=JSON.parse(localStorage.getItem('evpro2'));
+        if(old&&old.apiKey){S.apiKey=old.apiKey;S.bankroll=old.bankroll||S.bankroll;save()}
+      }catch(e2){}
+    }
+  }catch(e){}
+}
 
 // ═══ SPORTS CONFIG ═══
 const SPORTS=[
@@ -452,6 +464,13 @@ function render(){
 
   // ═══ SCAN TAB ═══
   if(S.tab==='scan'){
+    // API key status
+    if(!S.apiKey){
+      h+='<div class="setup" style="border-color:rgba(255,23,68,.2)"><div class="setup-t" style="color:var(--r)">🔑 No API Key</div>';
+      h+='<div style="font-size:13px;color:#aaa;line-height:1.6;margin-bottom:10px">Paste your API key in the <strong style="color:var(--g)">SET</strong> tab to start scanning.</div>';
+      h+='<div style="font-size:12px;color:#888">Free key from <strong>the-odds-api.com</strong></div></div>';
+    }
+
     // Stats row
     const plusEv=S.edges.filter(e=>e.ev>=.05).length;
     const bestEv=S.edges.length?S.edges[0]:null;
