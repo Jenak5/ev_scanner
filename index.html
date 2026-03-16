@@ -88,7 +88,7 @@ const GR={'A+':0,A:1,'B+':2,B:3,C:4,D:5,F:6};
 
 // ═══ STATE ═══
 let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgress:0,scanStatus:'',
-  edges:[],results:[],customSlip:[],filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false};
+  edges:[],results:[],customSlip:[],filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null};
 
 // ═══ EXPANDED SPORTS MAP — ALL AVAILABLE MARKETS ═══
 const SPORTS_MAP={
@@ -273,7 +273,7 @@ function logParlay(){
   const id='par_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
   const legs=S.customSlip.map(s=>({
     player:s.player,dir:s.direction,line:s.line,stat:s.stat,book:s.bestBook,
-    sport:s.sport,sportEmoji:s.sportEmoji,grade:s.grade.l
+    sport:s.sport,sportEmoji:s.sportEmoji,grade:s.grade.l,hit:null
   }));
   S.results.push({
     id,type:'parlay',player:legs.length+'-Leg Parlay',legs,
@@ -288,6 +288,13 @@ function logParlay(){
 function resolvePlay(id,hit){
   const r=S.results.find(r=>r.id===id);
   if(!r)return;
+  // For parlays, enter leg-by-leg mode
+  if(r.type==='parlay'&&r.legs){
+    S.resolvingParlay=id;
+    save();render();
+    return;
+  }
+  // Straight bets resolve directly
   if(hit){
     r.status='won';r.hit=true;
     const payInput=prompt('Enter your payout amount (what you received back, including your wager):','0');
@@ -297,14 +304,38 @@ function resolvePlay(id,hit){
   }
   save();render();
 }
+function resolveLeg(playId,legIdx,hit){
+  const r=S.results.find(r=>r.id===playId);
+  if(!r||!r.legs||!r.legs[legIdx])return;
+  r.legs[legIdx].hit=hit;
+  // If any leg is a loss, entire parlay is a loss
+  if(!hit){
+    r.status='lost';r.hit=false;r.payout=0;
+    S.resolvingParlay=null;
+    save();render();
+    return;
+  }
+  // Check if all legs resolved as wins
+  const allResolved=r.legs.every(l=>l.hit===true);
+  if(allResolved){
+    r.status='won';r.hit=true;
+    const payInput=prompt('All legs hit! Enter your payout amount (what you received back, including your wager):','0');
+    r.payout=parseFloat(payInput)||0;
+    S.resolvingParlay=null;
+  }
+  save();render();
+}
+function cancelResolve(){S.resolvingParlay=null;render()}
 function unresolvePlay(id){
   const r=S.results.find(r=>r.id===id);
   if(!r)return;
   r.status='pending';r.hit=null;r.payout=0;
+  if(r.legs)r.legs.forEach(l=>{l.hit=null});
   save();render();
 }
 function deletePlay(id){
   S.results=S.results.filter(r=>r.id!==id);
+  if(S.resolvingParlay===id)S.resolvingParlay=null;
   save();render();
 }
 
@@ -448,18 +479,24 @@ async function runFullScan(){
       // ── GAME-LEVEL MARKETS: per-event fetch for halves, quarters, periods, alt lines, BTTS, etc. ──
       const gameMarketsArr=sport.gameMarkets||[];
       if(gameMarketsArr.length>0){
-        // Use same filtered upcoming events list
-        const gmEvents=events;// Paid plan — scan all upcoming
+        // Use rawEvents (not filtered) so we catch games starting soon too
+        const gmEvents=rawEvents;// No cap — scan every game
         for(let gi=0;gi<gmEvents.length;gi++){
           const gev=gmEvents[gi];
-          S.scanStatus='Scanning '+sport.name+' game markets: '+gev.home_team+' vs '+gev.away_team+'...';
+          S.scanStatus='Scanning '+sport.name+' game markets: '+(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD')+'...';
           S.scanProgress=((si+(gi+.5)/Math.max(gmEvents.length,1))/totalSteps)*100;render();
           try{
-            const gmUrl='https://api.the-odds-api.com/v4/sports/'+sportKey+'/events/'+gev.id+'/odds?apiKey='+S.apiKey+'&regions=us&markets='+gameMarketsArr.join(',')+'&oddsFormat=american';
+            // Split into chunks of 10 markets per request to avoid API issues
+            const chunks=[];
+            for(let ci=0;ci<gameMarketsArr.length;ci+=10){
+              chunks.push(gameMarketsArr.slice(ci,ci+10));
+            }
+            for(let ch=0;ch<chunks.length;ch++){
+            const gmUrl='https://api.the-odds-api.com/v4/sports/'+sportKey+'/events/'+gev.id+'/odds?apiKey='+S.apiKey+'&regions=us&markets='+chunks[ch].join(',')+'&oddsFormat=american';
             const gmRes=await fetch(gmUrl);
             if(!gmRes.ok)continue;
             const gmData=await gmRes.json();
-            if(!gmData.bookmakers)continue;
+            if(!gmData.bookmakers||!gmData.bookmakers.length)continue;
 
             // Collect all outcomes per market across books
             const mktLines={};// {marketKey: {outcomeKey: [{book,price,point,name}]}}
@@ -504,14 +541,14 @@ async function runFullScan(){
                 if(!fair||!bestBookProb||fair<=bestBookProb)return;
 
                 const ev=calcEv(fair,bestBookProb);
-                if(ev<.02)return;
+                if(ev<.01)return;// Lower threshold for game markets
                 const grade=getGrade(ev);
                 const k=kellyF(fair,bestBookProb,S.kellyMult);
 
                 // Build display name
                 let direction=oc.name;
                 let line=oc.point!=null?oc.point:'';
-                let displayName=gev.home_team+' vs '+gev.away_team;
+                let displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');
 
                 // For spreads/totals with Over/Under
                 if(oc.name==='Over'||oc.name==='Under'){
@@ -526,6 +563,11 @@ async function runFullScan(){
                 if(oc.name==='Yes'||oc.name==='No'){
                   direction=oc.name.toUpperCase();
                 }
+                // For Draw
+                if(oc.name==='Draw'){
+                  displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');
+                  direction='DRAW';
+                }
 
                 allEdges.push({
                   player:displayName,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,
@@ -533,11 +575,12 @@ async function runFullScan(){
                   fairProb:fair,bookProb:bestBookProb,bestBook:bestBook.book,bestPrice:bestBook.price,
                   ev,grade,kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,
                   allBooks:oc.books.map(b=>({name:b.book,price:b.price})),
-                  event:gev.home_team+' vs '+gev.away_team,
+                  event:(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD'),
                   time:new Date(gev.commence_time).toLocaleString()
                 });
               });
             });
+            }// end chunks loop
           }catch(e){console.log('Game market error:',e)}
           await new Promise(r=>setTimeout(r,300));
         }
@@ -756,10 +799,31 @@ function render(){
     if(pending.length){
       h+='<div style="font-size:12px;letter-spacing:2px;color:var(--y);font-family:var(--mono);margin-bottom:8px">⏳ PENDING ('+pending.length+')</div>';
       pending.forEach(r=>{
-        h+='<div style="background:rgba(255,214,0,.03);border:1px solid rgba(255,214,0,.1);border-radius:10px;padding:12px 14px;margin-bottom:6px">';
+        const isResolving=S.resolvingParlay===r.id;
+        h+='<div style="background:rgba(255,214,0,.03);border:1px solid '+(isResolving?'rgba(255,145,0,.3)':'rgba(255,214,0,.1)')+';border-radius:10px;padding:12px 14px;margin-bottom:6px">';
         h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">';
         h+='<div><div style="font-size:14px;font-weight:700;color:#fff">'+(r.sportEmoji||'')+' '+r.player+'</div>';
-        if(r.type==='parlay'&&r.legs){
+
+        // Show legs with per-leg resolve buttons if resolving
+        if(r.type==='parlay'&&r.legs&&isResolving){
+          h+='<div style="margin-top:8px;margin-bottom:4px"><div style="font-size:11px;letter-spacing:1.5px;color:var(--slip);font-family:var(--mono);margin-bottom:6px">MARK EACH LEG — first ❌ kills the parlay</div>';
+          r.legs.forEach((l,li)=>{
+            const legDone=l.hit!==null;
+            const legW=l.hit===true;
+            h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">';
+            h+='<div style="flex:1"><div style="font-size:13px;color:'+(legDone?(legW?'var(--g)':'var(--r)'):'#ddd')+';font-weight:'+(legDone?'700':'400')+'">'+l.sportEmoji+' '+l.player+'</div>';
+            h+='<div style="font-size:11px;color:#667">'+l.dir+' '+l.line+' '+l.stat+' @ '+l.book+'</div></div>';
+            if(legDone){
+              h+='<span style="font-size:16px">'+(legW?'✅':'❌')+'</span>';
+            } else {
+              h+='<button style="padding:6px 12px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="resolveLeg(\''+r.id+'\','+li+',true)">✅</button>';
+              h+='<button style="padding:6px 12px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono);margin-left:4px" onclick="resolveLeg(\''+r.id+'\','+li+',false)">❌</button>';
+            }
+            h+='</div>';
+          });
+          h+='<button style="margin-top:8px;padding:6px 14px;border-radius:5px;font-size:10px;cursor:pointer;background:none;border:1px solid var(--border);color:#667;font-family:var(--mono)" onclick="cancelResolve()">CANCEL</button>';
+          h+='</div>';
+        } else if(r.type==='parlay'&&r.legs){
           r.legs.forEach(l=>{
             h+='<div style="font-size:11px;color:#778;padding-left:8px">'+l.sportEmoji+' '+l.player+' '+l.dir+' '+l.line+' '+l.stat+'</div>';
           });
@@ -769,12 +833,19 @@ function render(){
         h+='</div>';
         h+='<div style="text-align:right;font-family:var(--mono)"><div style="font-size:14px;font-weight:700;color:var(--y)">$'+r.wager.toFixed(2)+'</div><div style="font-size:10px;color:#667">'+r.date+'</div></div></div>';
 
-        // W/L buttons
-        h+='<div style="display:flex;gap:6px">';
-        h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">✅ WIN</button>';
-        h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',false)">❌ LOSS</button>';
-        h+='<button style="width:40px;padding:10px;border-radius:6px;font-size:11px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border);color:#556;font-family:var(--mono)" onclick="if(confirm(\'Delete this play?\'))deletePlay(\''+r.id+'\')">🗑</button>';
-        h+='</div></div>';
+        // W/L buttons (for straight bets, or to start parlay resolution)
+        if(!isResolving){
+          h+='<div style="display:flex;gap:6px">';
+          if(r.type==='parlay'&&r.legs){
+            h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.2);color:var(--slip);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">📋 RESOLVE LEGS</button>';
+          } else {
+            h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">✅ WIN</button>';
+            h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',false)">❌ LOSS</button>';
+          }
+          h+='<button style="width:40px;padding:10px;border-radius:6px;font-size:11px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border);color:#556;font-family:var(--mono)" onclick="if(confirm(\'Delete this play?\'))deletePlay(\''+r.id+'\')">🗑</button>';
+          h+='</div>';
+        }
+        h+='</div>';
       });
     }
 
@@ -787,7 +858,7 @@ function render(){
         h+='<div style="flex:1"><div style="display:flex;align-items:center;gap:6px"><span style="color:'+(isW?'var(--g)':'var(--r)')+';font-weight:700;font-size:14px">'+(isW?'W':'L')+'</span>';
         h+='<span style="color:#ddd;font-weight:600">'+r.player+'</span></div>';
         if(r.type==='parlay'&&r.legs){
-          h+='<div style="font-size:10px;color:#667;padding-left:24px">'+r.legs.map(l=>l.player.split(' ')[0]).join(' + ')+'</div>';
+          h+='<div style="font-size:10px;color:#667;padding-left:24px">'+r.legs.map(l=>(l.hit===true?'✅':'❌')+l.player.split(' ')[0]).join(' · ')+'</div>';
         } else {
           h+='<div style="font-size:10px;color:#667;padding-left:24px">'+r.dir+' '+r.line+' '+(r.stat||'')+' @ '+r.book+'</div>';
         }
