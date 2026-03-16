@@ -88,7 +88,7 @@ const GR={'A+':0,A:1,'B+':2,B:3,C:4,D:5,F:6};
 
 // ═══ STATE ═══
 let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgress:0,scanStatus:'',
-  edges:[],results:[],customSlip:[],filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null};
+  edges:[],results:[],customSlip:[],filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null,editingSlipLeg:null};
 
 // ═══ EXPANDED SPORTS MAP — ALL AVAILABLE MARKETS ═══
 const SPORTS_MAP={
@@ -240,6 +240,28 @@ function toggleSlip(idx){
   save();render();
 }
 function removeFromSlip(id){S.customSlip=S.customSlip.filter(s=>s.id!==id);save();render()}
+function removeSlipByIndex(idx){S.customSlip.splice(idx,1);save();render()}
+function saveSlipEdit(idx){
+  const s=S.customSlip[idx];
+  if(!s)return;
+  const lineInput=document.getElementById('editLine'+idx);
+  const oddsInput=document.getElementById('editOdds'+idx);
+  if(lineInput)s.line=lineInput.value.trim();
+  if(oddsInput){
+    const newOdds=parseInt(oddsInput.value.replace('+',''));
+    if(!isNaN(newOdds)){
+      s.bestPrice=newOdds;
+      s.bookProb=americanToProb(newOdds);
+      // Recalculate EV and grade based on new odds
+      s.ev=calcEv(s.fairProb,s.bookProb);
+      s.grade=getGrade(s.ev);
+      s.kelly=kellyF(s.fairProb,s.bookProb,S.kellyMult)*100;
+      s.wager=Math.round(S.bankroll*(s.kelly/100)*100)/100;
+    }
+  }
+  S.editingSlipLeg=null;
+  save();render();
+}
 function clearSlip(){S.customSlip=[];save();render()}
 function getSlipStats(){
   if(!S.customSlip.length)return{parlayProb:0,totalEv:0,kellyWager:0,parlayOdds:0,payout:0};
@@ -308,24 +330,33 @@ function resolveLeg(playId,legIdx,hit){
   const r=S.results.find(r=>r.id===playId);
   if(!r||!r.legs||!r.legs[legIdx])return;
   r.legs[legIdx].hit=hit;
-  // If any leg is a loss, entire parlay is a loss
-  if(!hit){
-    r.status='lost';r.hit=false;r.payout=0;
-    S.resolvingParlay=null;
-    save();render();
-    return;
-  }
-  // Check if all legs resolved as wins
-  const allResolved=r.legs.every(l=>l.hit===true);
-  if(allResolved){
+  save();render();
+}
+function submitParlay(id){
+  const r=S.results.find(r=>r.id===id);
+  if(!r||!r.legs)return;
+  // Check if all legs have been marked
+  const unmarked=r.legs.filter(l=>l.hit===null);
+  if(unmarked.length){alert('Mark all legs before submitting ('+unmarked.length+' remaining)');return}
+  const allHit=r.legs.every(l=>l.hit===true);
+  if(allHit){
     r.status='won';r.hit=true;
     const payInput=prompt('All legs hit! Enter your payout amount (what you received back, including your wager):','0');
     r.payout=parseFloat(payInput)||0;
-    S.resolvingParlay=null;
+  } else {
+    r.status='lost';r.hit=false;r.payout=0;
   }
+  S.resolvingParlay=null;
   save();render();
 }
 function cancelResolve(){S.resolvingParlay=null;render()}
+function quickLossParlay(id){
+  const r=S.results.find(r=>r.id===id);
+  if(!r)return;
+  r.status='lost';r.hit=false;r.payout=0;
+  if(r.legs)r.legs.forEach(l=>{if(l.hit===null)l.hit=false});
+  save();render();
+}
 function unresolvePlay(id){
   const r=S.results.find(r=>r.id===id);
   if(!r)return;
@@ -733,12 +764,26 @@ function render(){
       // Slip legs
       h+='<div class="cslip"><div class="cslip-t">🎫 YOUR SLIP — '+S.customSlip.length+'/10 LEGS</div>';
       S.customSlip.forEach((s,i)=>{
-        h+='<div class="cslip-r">';
+        const isEditing=S.editingSlipLeg===i;
+        h+='<div class="cslip-r" style="flex-wrap:wrap">';
         h+='<div style="flex:1"><div style="font-size:14px;font-weight:700;color:#fff">'+s.sportEmoji+' '+s.player+'</div>';
-        h+='<div style="font-size:12px;color:#889">'+s.direction+' '+s.line+' '+s.stat+' @ '+s.bestBook+'</div></div>';
+        if(isEditing){
+          h+='<div style="display:flex;gap:6px;margin-top:6px;align-items:center">';
+          h+='<span style="font-size:11px;color:var(--muted)">'+s.direction+'</span>';
+          h+='<input id="editLine'+i+'" type="text" value="'+s.line+'" style="width:60px;background:rgba(255,255,255,.06);border:1px solid var(--slipBorder);border-radius:4px;padding:4px 6px;color:#fff;font-size:13px;font-family:var(--mono);text-align:center">';
+          h+='<span style="font-size:11px;color:var(--muted)">'+s.stat+' @</span>';
+          h+='<input id="editOdds'+i+'" type="text" value="'+(s.bestPrice>0?'+':'')+s.bestPrice+'" style="width:65px;background:rgba(255,255,255,.06);border:1px solid var(--slipBorder);border-radius:4px;padding:4px 6px;color:#fff;font-size:13px;font-family:var(--mono);text-align:center">';
+          h+='<button style="padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.1);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="saveSlipEdit('+i+')">✓</button>';
+          h+='<button style="padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;background:none;border:1px solid var(--border);color:#667;font-family:var(--mono)" onclick="S.editingSlipLeg=null;render()">✕</button>';
+          h+='</div>';
+        } else {
+          h+='<div style="font-size:12px;color:#889">'+s.direction+' '+s.line+' '+s.stat+' @ '+s.bestBook+' ('+(s.bestPrice>0?'+':'')+s.bestPrice+')</div>';
+        }
+        h+='</div>';
         h+='<div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;color:'+s.grade.c+';font-family:var(--mono);font-size:12px">'+s.grade.l+'</span>';
         h+='<span style="font-size:11px;color:#aab;font-family:var(--mono)">'+(s.fairProb*100).toFixed(0)+'%</span>';
-        h+='<span class="cslip-rm" onclick="removeFromSlip(\''+s.id.replace(/'/g,"\\'")+'\')">✕</span></div>';
+        if(!isEditing)h+='<span style="font-size:10px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid rgba(255,145,0,.15);color:var(--slip);background:rgba(255,145,0,.04)" onclick="S.editingSlipLeg='+i+';render()">✏️</span>';
+        h+='<span class="cslip-rm" onclick="removeSlipByIndex('+i+')">✕</span></div>';
         h+='</div>';
       });
 
@@ -821,7 +866,12 @@ function render(){
             }
             h+='</div>';
           });
-          h+='<button style="margin-top:8px;padding:6px 14px;border-radius:5px;font-size:10px;cursor:pointer;background:none;border:1px solid var(--border);color:#667;font-family:var(--mono)" onclick="cancelResolve()">CANCEL</button>';
+          const markedCount=r.legs.filter(l=>l.hit!==null).length;
+          const totalLegs=r.legs.length;
+          h+='<div style="display:flex;gap:6px;margin-top:10px;align-items:center">';
+          h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:'+(markedCount===totalLegs?'rgba(0,255,170,.12)':'rgba(255,255,255,.04)')+';border:1px solid '+(markedCount===totalLegs?'rgba(0,255,170,.25)':'rgba(255,255,255,.08)')+';color:'+(markedCount===totalLegs?'var(--g)':'#556')+';font-family:var(--mono)" onclick="submitParlay(\''+r.id+'\')">SUBMIT ('+markedCount+'/'+totalLegs+' marked)</button>';
+          h+='<button style="padding:10px 14px;border-radius:6px;font-size:10px;cursor:pointer;background:none;border:1px solid var(--border);color:#667;font-family:var(--mono)" onclick="cancelResolve()">CANCEL</button>';
+          h+='</div>';
           h+='</div>';
         } else if(r.type==='parlay'&&r.legs){
           r.legs.forEach(l=>{
@@ -837,7 +887,8 @@ function render(){
         if(!isResolving){
           h+='<div style="display:flex;gap:6px">';
           if(r.type==='parlay'&&r.legs){
-            h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.2);color:var(--slip);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">📋 RESOLVE LEGS</button>';
+            h+='<button style="flex:2;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.2);color:var(--slip);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">📋 RESOLVE LEGS</button>';
+            h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono)" onclick="quickLossParlay(\''+r.id+'\')">❌ LOSS</button>';
           } else {
             h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">✅ WIN</button>';
             h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',false)">❌ LOSS</button>';
