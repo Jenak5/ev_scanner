@@ -88,7 +88,7 @@ const GR={'A+':0,A:1,'B+':2,B:3,C:4,D:5,F:6};
 
 // ═══ STATE ═══
 let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgress:0,scanStatus:'',
-  edges:[],results:[],customSlip:[],filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null,editingSlipLeg:null};
+  edges:[],results:[],slips:[{name:'Slip 1',legs:[]}],activeSlip:0,filterSport:'ALL',sortBy:'ev',expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null,editingSlipLeg:null};
 
 // ═══ EXPANDED SPORTS MAP — ALL AVAILABLE MARKETS ═══
 const SPORTS_MAP={
@@ -159,6 +159,49 @@ const SPORTS_MAP={
     'totals_p1','totals_p2','totals_p3',
     'team_totals','alternate_spreads','alternate_totals'
   ]},
+  soccer_epl:{name:'EPL',e:'⚽',c:'#6a0572',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_last_goal_scorer',
+    'player_shots_on_target','player_shots','player_assists','player_to_receive_card'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
+    'spreads_h1','totals_h1','team_totals','double_chance'
+  ]},
+  soccer_usa_mls:{name:'MLS',e:'⚽',c:'#1a237e',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
+  ]},
+  soccer_spain_la_liga:{name:'LA LIGA',e:'⚽',c:'#f57f17',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_h2','h2h_3_way','btts','draw_no_bet',
+    'spreads_h1','totals_h1','team_totals','double_chance'
+  ]},
+  soccer_germany_bundesliga:{name:'BUNDES',e:'⚽',c:'#c62828',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
+  ]},
+  soccer_italy_serie_a:{name:'SERIE A',e:'⚽',c:'#1565c0',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
+  ]},
+  soccer_france_ligue_one:{name:'LIGUE 1',e:'⚽',c:'#0277bd',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots','player_assists'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
+  ]},
+  soccer_uefa_champs_league:{name:'UCL',e:'⚽',c:'#1a237e',props:[
+    'player_goal_scorer_anytime','player_first_goal_scorer','player_shots_on_target','player_shots'
+  ],gameMarkets:[
+    'h2h','spreads','totals','h2h_h1','h2h_3_way','btts','draw_no_bet',
+    'totals_h1','team_totals','double_chance'
+  ]},
   golf_pga_championship:{name:'GOLF',e:'⛳',c:'#2d6a4f',props:[],gameMarkets:['h2h','outrights']},
   tennis_atp_french_open:{name:'TENNIS',e:'🎾',c:'#c6a700',props:[],gameMarkets:['h2h','spreads','totals']}
 };
@@ -218,31 +261,37 @@ const MKT_NAMES={
 function formatMarket(m){return MKT_NAMES[m]||m.replace(/^(player_|batter_|pitcher_)/,'').replace(/_/g,' ')}
 
 // ═══ PERSISTENCE ═══
-function save(){try{localStorage.setItem('evpro3',JSON.stringify({apiKey:S.apiKey,bankroll:S.bankroll,kellyMult:S.kellyMult,results:S.results,edges:S.edges,customSlip:S.customSlip}))}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem('evpro3'));if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.results=d.results||[];S.edges=d.edges||[];S.customSlip=d.customSlip||[]}}catch(e){}}
+function save(){try{localStorage.setItem('evpro3',JSON.stringify({apiKey:S.apiKey,bankroll:S.bankroll,kellyMult:S.kellyMult,results:S.results,edges:S.edges,slips:S.slips,activeSlip:S.activeSlip}))}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('evpro3'));if(d){S.apiKey=d.apiKey||'';S.bankroll=d.bankroll||100;S.kellyMult=d.kellyMult||.25;S.results=d.results||[];S.edges=d.edges||[];S.slips=d.slips||[{name:'Slip 1',legs:[]}];S.activeSlip=d.activeSlip||0;if(!S.slips.length)S.slips=[{name:'Slip 1',legs:[]}];if(S.activeSlip>=S.slips.length)S.activeSlip=0;
+  // Migrate old customSlip if present
+  if(d.customSlip&&d.customSlip.length&&S.slips.length===1&&!S.slips[0].legs.length){S.slips[0].legs=d.customSlip}
+}}catch(e){}}
 
-// ═══ CUSTOM SLIP LOGIC ═══
-function isOnSlip(edge){return S.customSlip.some(s=>s.id===edgeId(edge))}
+// ═══ MULTI-SLIP LOGIC ═══
+function curSlip(){return S.slips[S.activeSlip]||S.slips[0]}
+function curLegs(){return curSlip().legs}
+function isOnSlip(edge){return curLegs().some(s=>s.id===edgeId(edge))}
 function edgeId(e){return e.player+'_'+e.stat+'_'+e.direction+'_'+e.line+'_'+e.bestBook}
 function toggleSlip(idx){
   const edge=getFilteredSorted()[idx];
   if(!edge)return;
   const id=edgeId(edge);
-  if(S.customSlip.some(s=>s.id===id)){
-    S.customSlip=S.customSlip.filter(s=>s.id!==id);
+  const legs=curLegs();
+  if(legs.some(s=>s.id===id)){
+    curSlip().legs=legs.filter(s=>s.id!==id);
   } else {
-    if(S.customSlip.length>=10){alert('Max 10 legs per slip');return}
-    S.customSlip.push({id,player:edge.player,sport:edge.sport,sportEmoji:edge.sportEmoji,stat:edge.stat,
+    if(legs.length>=10){alert('Max 10 legs per slip');return}
+    legs.push({id,player:edge.player,sport:edge.sport,sportEmoji:edge.sportEmoji,stat:edge.stat,
       line:edge.line,direction:edge.direction,fairProb:edge.fairProb,bookProb:edge.bookProb,
       bestBook:edge.bestBook,bestPrice:edge.bestPrice,ev:edge.ev,grade:edge.grade,
       kelly:edge.kelly,wager:edge.wager,event:edge.event});
   }
   save();render();
 }
-function removeFromSlip(id){S.customSlip=S.customSlip.filter(s=>s.id!==id);save();render()}
-function removeSlipByIndex(idx){S.customSlip.splice(idx,1);save();render()}
+function removeFromSlip(id){curSlip().legs=curLegs().filter(s=>s.id!==id);save();render()}
+function removeSlipByIndex(idx){curSlip().legs.splice(idx,1);save();render()}
 function saveSlipEdit(idx){
-  const s=S.customSlip[idx];
+  const s=curLegs()[idx];
   if(!s)return;
   const lineInput=document.getElementById('editLine'+idx);
   const oddsInput=document.getElementById('editOdds'+idx);
@@ -252,7 +301,6 @@ function saveSlipEdit(idx){
     if(!isNaN(newOdds)){
       s.bestPrice=newOdds;
       s.bookProb=americanToProb(newOdds);
-      // Recalculate EV and grade based on new odds
       s.ev=calcEv(s.fairProb,s.bookProb);
       s.grade=getGrade(s.ev);
       s.kelly=kellyF(s.fairProb,s.bookProb,S.kellyMult)*100;
@@ -262,11 +310,28 @@ function saveSlipEdit(idx){
   S.editingSlipLeg=null;
   save();render();
 }
-function clearSlip(){S.customSlip=[];save();render()}
+function clearSlip(){curSlip().legs=[];save();render()}
+function addNewSlip(){
+  S.slips.push({name:'Slip '+(S.slips.length+1),legs:[]});
+  S.activeSlip=S.slips.length-1;
+  S.editingSlipLeg=null;save();render();
+}
+function switchSlip(idx){S.activeSlip=idx;S.editingSlipLeg=null;render()}
+function deleteSlip(idx){
+  if(S.slips.length<=1){alert('Need at least one slip');return}
+  S.slips.splice(idx,1);
+  if(S.activeSlip>=S.slips.length)S.activeSlip=S.slips.length-1;
+  save();render();
+}
+function renameSlip(idx){
+  const name=prompt('Slip name:',S.slips[idx].name);
+  if(name&&name.trim()){S.slips[idx].name=name.trim();save();render()}
+}
 function getSlipStats(){
-  if(!S.customSlip.length)return{parlayProb:0,totalEv:0,kellyWager:0,parlayOdds:0,payout:0};
-  const parlayProb=S.customSlip.reduce((p,s)=>p*s.fairProb,1);
-  const parlayBookProb=S.customSlip.reduce((p,s)=>p*s.bookProb,1);
+  const legs=curLegs();
+  if(!legs.length)return{parlayProb:0,totalEv:0,kellyWager:0,parlayOdds:0,payout:0,parlayBookProb:0};
+  const parlayProb=legs.reduce((p,s)=>p*s.fairProb,1);
+  const parlayBookProb=legs.reduce((p,s)=>p*s.bookProb,1);
   const totalEv=calcEv(parlayProb,parlayBookProb);
   const kellyPct=kellyF(parlayProb,parlayBookProb,S.kellyMult);
   const kellyWager=Math.round(S.bankroll*kellyPct*100)/100;
@@ -290,15 +355,16 @@ function logPlay(idx){
   save();S.tab='track';render();
 }
 function logParlay(){
-  if(!S.customSlip.length)return;
+  const cl=curLegs();
+  if(!cl.length)return;
   const ss=getSlipStats();
   const id='par_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-  const legs=S.customSlip.map(s=>({
+  const legs=cl.map(s=>({
     player:s.player,dir:s.direction,line:s.line,stat:s.stat,book:s.bestBook,
     sport:s.sport,sportEmoji:s.sportEmoji,grade:s.grade.l,hit:null
   }));
   S.results.push({
-    id,type:'parlay',player:legs.length+'-Leg Parlay',legs,
+    id,type:'parlay',player:curSlip().name+' ('+legs.length+'-Leg)',legs,
     dir:legs.map(l=>l.player.split(' ')[0]).join(' / '),line:'',
     stat:'',book:'Multi',price:ss.parlayOdds,wager:ss.kellyWager,
     ev:ss.totalEv,grade:getGrade(ss.totalEv).l,sport:'MIX',sportEmoji:'🎫',
@@ -646,7 +712,7 @@ function render(){
   h+='<div class="hdr"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)"></div><span style="font-size:11px;letter-spacing:4px;color:var(--muted)">AUTO-SCAN</span></div><div class="logo">+EV Scanner Pro</div></div>';
   h+='<div class="tabs">';
   [['scan','SCAN'],['slip','SLIP'],['track','TRACK'],['set','SET']].forEach(([k,l])=>{
-    const badge=k==='slip'&&S.customSlip.length?' ('+S.customSlip.length+')':'';
+    const badge=k==='slip'&&curLegs().length?' ('+curLegs().length+')':'';
     h+='<button class="tab'+(S.tab===k?' on':'')+'" onclick="S.tab=\''+k+'\';render()">'+l+badge+'</button>';
   });
   h+='</div></div>';
@@ -756,14 +822,33 @@ function render(){
 
   // ═══ CUSTOM SLIP TAB ═══
   if(S.tab==='slip'){
-    h+='<div style="text-align:center;margin-bottom:16px"><div style="font-size:12px;letter-spacing:3px;color:var(--slip);font-family:var(--mono);margin-bottom:4px">BUILD YOUR</div><div style="font-size:28px;font-weight:700;background:linear-gradient(135deg,#ff9100,#ffd600);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Custom Parlay Slip</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Tap <span style="color:var(--slip);font-weight:700">+</span> on any edge card in SCAN to add legs here</div></div>';
+    const cl=curLegs();
+    const slipStats=getSlipStats();
+    const totalSlipLegs=S.slips.reduce((s,sl)=>s+sl.legs.length,0);
 
-    if(!S.customSlip.length){
-      h+='<div class="empty"><div style="font-size:40px;opacity:.3">🎫</div><div style="font-size:14px;color:var(--muted);margin-top:10px">Your custom slip is empty</div><div style="font-size:13px;color:#556;margin-top:4px">Go to SCAN and tap the <span style="color:var(--slip);font-weight:700">+</span> button on edges you like</div></div>';
+    // Slip selector tabs
+    h+='<div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;align-items:center">';
+    S.slips.forEach((sl,si)=>{
+      const isActive=si===S.activeSlip;
+      const cnt=sl.legs.length;
+      h+='<button style="padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;font-family:var(--mono);border:1px solid '+(isActive?'var(--slipBorder)':'var(--border)')+';background:'+(isActive?'var(--slipBg)':'transparent')+';color:'+(isActive?'var(--slip)':'#8890a0')+'" onclick="switchSlip('+si+')">'+sl.name+(cnt?' ('+cnt+')':'')+'</button>';
+    });
+    h+='<button style="padding:8px 12px;border-radius:6px;font-size:16px;font-weight:700;cursor:pointer;border:1px dashed var(--border);background:transparent;color:#556;line-height:1" onclick="addNewSlip()" title="New slip">+</button>';
+    h+='</div>';
+
+    // Slip name + actions
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+    h+='<div style="font-size:20px;font-weight:700;color:var(--slip);font-family:var(--mono);cursor:pointer" onclick="renameSlip('+S.activeSlip+')">🎫 '+curSlip().name+'</div>';
+    h+='<div style="display:flex;gap:4px">';
+    if(S.slips.length>1)h+='<button style="padding:4px 10px;border-radius:4px;font-size:10px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);font-family:var(--mono)" onclick="if(confirm(\'Delete this slip?\'))deleteSlip('+S.activeSlip+')">DELETE</button>';
+    h+='</div></div>';
+
+    if(!cl.length){
+      h+='<div class="empty"><div style="font-size:40px;opacity:.3">🎫</div><div style="font-size:14px;color:var(--muted);margin-top:10px">This slip is empty</div><div style="font-size:13px;color:#556;margin-top:4px">Go to SCAN and tap the <span style="color:var(--slip);font-weight:700">+</span> button on edges you like</div></div>';
     } else {
       // Slip legs
-      h+='<div class="cslip"><div class="cslip-t">🎫 YOUR SLIP — '+S.customSlip.length+'/10 LEGS</div>';
-      S.customSlip.forEach((s,i)=>{
+      h+='<div class="cslip"><div class="cslip-t">'+curSlip().name.toUpperCase()+' — '+cl.length+'/10 LEGS</div>';
+      cl.forEach((s,i)=>{
         const isEditing=S.editingSlipLeg===i;
         h+='<div class="cslip-r" style="flex-wrap:wrap">';
         h+='<div style="flex:1"><div style="font-size:14px;font-weight:700;color:#fff">'+s.sportEmoji+' '+s.player+'</div>';
@@ -816,7 +901,7 @@ function render(){
 
       // Log parlay + Clear buttons
       h+='<button style="width:100%;padding:14px;border-radius:8px;font-family:var(--mono);font-size:13px;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.15);color:var(--g);font-weight:700;letter-spacing:1px;margin-bottom:8px" onclick="logParlay()">📋 LOG PARLAY TO TRACKER</button>';
-      h+='<button style="width:100%;padding:12px;border-radius:8px;font-family:var(--mono);font-size:11px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);font-weight:700;letter-spacing:1px" onclick="if(confirm(\'Clear your custom slip?\'))clearSlip()">CLEAR SLIP</button>';
+      h+='<button style="width:100%;padding:12px;border-radius:8px;font-family:var(--mono);font-size:11px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);font-weight:700;letter-spacing:1px" onclick="if(confirm(\'Clear legs from this slip?\'))clearSlip()">CLEAR LEGS</button>';
     }
   }
 
@@ -967,8 +1052,8 @@ function render(){
   h+='<div class="footer">+EV Scanner Pro v3.0 · All Markets + Custom Slip · Not financial advice</div>';
 
   // Floating slip badge (visible on scan tab when slip has items)
-  if(S.tab==='scan'&&S.customSlip.length){
-    h+='<div class="slip-badge" onclick="S.tab=\'slip\';render()">🎫<div class="slip-badge-count">'+S.customSlip.length+'</div></div>';
+  if(S.tab==='scan'&&curLegs().length){
+    h+='<div class="slip-badge" onclick="S.tab=\'slip\';render()">🎫<div class="slip-badge-count">'+curLegs().length+'</div></div>';
   }
 
   app.innerHTML=h;
