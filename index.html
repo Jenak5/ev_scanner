@@ -253,6 +253,61 @@ function getSlipStats(){
   return{parlayProb,parlayBookProb,totalEv,kellyWager,parlayOdds,payout};
 }
 
+// ═══ PLAY TRACKING ═══
+function logPlay(idx){
+  const edge=getFilteredSorted()[idx];
+  if(!edge)return;
+  const id='p_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  S.results.push({
+    id,type:'straight',player:edge.player,dir:edge.direction,line:edge.line,
+    stat:edge.stat,book:edge.bestBook,price:edge.bestPrice,wager:edge.wager,
+    ev:edge.ev,grade:edge.grade.l,sport:edge.sport,sportEmoji:edge.sportEmoji,
+    event:edge.event,date:new Date().toLocaleDateString(),
+    status:'pending',hit:null,payout:0
+  });
+  save();S.tab='track';render();
+}
+function logParlay(){
+  if(!S.customSlip.length)return;
+  const ss=getSlipStats();
+  const id='par_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  const legs=S.customSlip.map(s=>({
+    player:s.player,dir:s.direction,line:s.line,stat:s.stat,book:s.bestBook,
+    sport:s.sport,sportEmoji:s.sportEmoji,grade:s.grade.l
+  }));
+  S.results.push({
+    id,type:'parlay',player:legs.length+'-Leg Parlay',legs,
+    dir:legs.map(l=>l.player.split(' ')[0]).join(' / '),line:'',
+    stat:'',book:'Multi',price:ss.parlayOdds,wager:ss.kellyWager,
+    ev:ss.totalEv,grade:getGrade(ss.totalEv).l,sport:'MIX',sportEmoji:'🎫',
+    event:legs.length+' legs',date:new Date().toLocaleDateString(),
+    status:'pending',hit:null,payout:0
+  });
+  save();S.tab='track';render();
+}
+function resolvePlay(id,hit){
+  const r=S.results.find(r=>r.id===id);
+  if(!r)return;
+  if(hit){
+    r.status='won';r.hit=true;
+    const payInput=prompt('Enter your payout amount (what you received back, including your wager):','0');
+    r.payout=parseFloat(payInput)||0;
+  } else {
+    r.status='lost';r.hit=false;r.payout=0;
+  }
+  save();render();
+}
+function unresolvePlay(id){
+  const r=S.results.find(r=>r.id===id);
+  if(!r)return;
+  r.status='pending';r.hit=null;r.payout=0;
+  save();render();
+}
+function deletePlay(id){
+  S.results=S.results.filter(r=>r.id!==id);
+  save();render();
+}
+
 // ═══ AUTO-SCANNER (SAME FETCH PATTERN AS V2) ═══
 async function runFullScan(){
   if(!S.apiKey){alert('Enter your Odds API key in Settings first');return}
@@ -605,6 +660,7 @@ function render(){
             h+='</div>';
             h+='<div style="font-size:12px;color:#889;margin-top:8px;line-height:1.6;font-family:var(--mono)">Edge: Fair prob '+(edge.fairProb*100).toFixed(1)+'% vs book implied '+(edge.bookProb*100).toFixed(1)+'% = '+(((edge.fairProb-edge.bookProb)*100).toFixed(1))+'% mispricing</div>';
             h+='<div style="font-size:14px;color:#aab;margin-top:4px">'+edge.time+'</div>';
+            h+='<button style="margin-top:10px;width:100%;padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;background:rgba(0,255,170,.06);border:1px solid rgba(0,255,170,.15);color:var(--g);font-family:var(--mono)" onclick="event.stopPropagation();logPlay('+i+')">📋 LOG THIS PLAY</button>';
             h+='</div>';
           }
           h+='</div>';
@@ -670,29 +726,90 @@ function render(){
       }
       h+='</div>';
 
-      // Clear button
+      // Log parlay + Clear buttons
+      h+='<button style="width:100%;padding:14px;border-radius:8px;font-family:var(--mono);font-size:13px;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.15);color:var(--g);font-weight:700;letter-spacing:1px;margin-bottom:8px" onclick="logParlay()">📋 LOG PARLAY TO TRACKER</button>';
       h+='<button style="width:100%;padding:12px;border-radius:8px;font-family:var(--mono);font-size:11px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);font-weight:700;letter-spacing:1px" onclick="if(confirm(\'Clear your custom slip?\'))clearSlip()">CLEAR SLIP</button>';
     }
   }
 
   // ═══ TRACK TAB ═══
   if(S.tab==='track'){
-    const tp=S.results.length,w=S.results.filter(r=>r.hit).length,hr=tp>0?w/tp*100:0;
-    const profit=S.results.reduce((s,r)=>s+(r.hit?r.wager*.8:-r.wager),0);
+    const resolved=S.results.filter(r=>r.status!=='pending');
+    const pending=S.results.filter(r=>r.status==='pending');
+    const tp=resolved.length,w=resolved.filter(r=>r.hit).length,hr=tp>0?w/tp*100:0;
+    const totalWagered=resolved.reduce((s,r)=>s+r.wager,0);
+    const totalPayout=resolved.reduce((s,r)=>s+r.payout,0);
+    const profit=totalPayout-totalWagered;
+
     h+='<div class="row r4">';
-    [{l:'PLAYS',v:tp,c:'#fff'},{l:'HIT RATE',v:tp?hr.toFixed(1)+'%':'--',c:hr>55?'var(--g)':'var(--y)'},{l:'WINS',v:w,c:'var(--g)'},{l:'PROFIT',v:tp?(profit>=0?'+$':'-$')+Math.abs(profit).toFixed(2):'--',c:profit>=0?'var(--g)':'var(--r)'}].forEach(s=>{
+    [{l:'RESOLVED',v:tp,c:'#fff'},{l:'HIT RATE',v:tp?hr.toFixed(1)+'%':'--',c:hr>55?'var(--g)':'var(--y)'},{l:'WINS',v:w,c:'var(--g)'},{l:'PROFIT',v:tp?(profit>=0?'+$':'-$')+Math.abs(profit).toFixed(2):'--',c:profit>=0?'var(--g)':'var(--r)'}].forEach(s=>{
       h+='<div class="box"><div class="vl">'+s.l+'</div><div class="val" style="color:'+s.c+'">'+s.v+'</div></div>'});
     h+='</div>';
 
-    if(!tp)h+='<div class="empty"><div style="font-size:14px;color:var(--muted)">No results logged yet.</div></div>';
+    // ROI row
+    if(tp&&totalWagered>0){
+      const roi=((profit/totalWagered)*100).toFixed(1);
+      h+='<div style="text-align:center;font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:14px">ROI: <span style="color:'+(profit>=0?'var(--g)':'var(--r)')+';font-weight:700">'+roi+'%</span> on $'+totalWagered.toFixed(2)+' wagered</div>';
+    }
 
-    S.results.slice().reverse().forEach(r=>{
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:'+(r.hit?'rgba(0,255,170,.03)':'rgba(255,23,68,.03)')+';border:1px solid '+(r.hit?'rgba(0,255,170,.08)':'rgba(255,23,68,.08)')+';border-radius:8px;margin-bottom:4px;font-size:11px">';
-      h+='<div><span style="color:'+(r.hit?'var(--g)':'var(--r)')+';font-weight:700">'+(r.hit?'W':'L')+'</span> <span style="color:#bbb">'+r.player+'</span> <span style="color:#556">'+r.dir+' '+r.line+'</span></div>';
-      h+='<div style="text-align:right;font-family:var(--mono)"><div style="color:#888;font-size:10px">'+r.book+' | $'+r.wager+'</div></div></div>';
-    });
+    // ── PENDING PLAYS ──
+    if(pending.length){
+      h+='<div style="font-size:12px;letter-spacing:2px;color:var(--y);font-family:var(--mono);margin-bottom:8px">⏳ PENDING ('+pending.length+')</div>';
+      pending.forEach(r=>{
+        h+='<div style="background:rgba(255,214,0,.03);border:1px solid rgba(255,214,0,.1);border-radius:10px;padding:12px 14px;margin-bottom:6px">';
+        h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">';
+        h+='<div><div style="font-size:14px;font-weight:700;color:#fff">'+(r.sportEmoji||'')+' '+r.player+'</div>';
+        if(r.type==='parlay'&&r.legs){
+          r.legs.forEach(l=>{
+            h+='<div style="font-size:11px;color:#778;padding-left:8px">'+l.sportEmoji+' '+l.player+' '+l.dir+' '+l.line+' '+l.stat+'</div>';
+          });
+        } else {
+          h+='<div style="font-size:12px;color:#889">'+r.dir+' '+r.line+' '+(r.stat||'')+' @ '+r.book+'</div>';
+        }
+        h+='</div>';
+        h+='<div style="text-align:right;font-family:var(--mono)"><div style="font-size:14px;font-weight:700;color:var(--y)">$'+r.wager.toFixed(2)+'</div><div style="font-size:10px;color:#667">'+r.date+'</div></div></div>';
 
-    if(tp)h+='<button style="width:100%;padding:10px;border-radius:8px;font-family:var(--mono);font-size:10px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);margin-top:10px;font-weight:700;letter-spacing:1px" onclick="if(confirm(\'Clear?\'))S.results=[],save(),render()">CLEAR</button>';
+        // W/L buttons
+        h+='<div style="display:flex;gap:6px">';
+        h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',true)">✅ WIN</button>';
+        h+='<button style="flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.15);color:var(--r);font-family:var(--mono)" onclick="resolvePlay(\''+r.id+'\',false)">❌ LOSS</button>';
+        h+='<button style="width:40px;padding:10px;border-radius:6px;font-size:11px;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border);color:#556;font-family:var(--mono)" onclick="if(confirm(\'Delete this play?\'))deletePlay(\''+r.id+'\')">🗑</button>';
+        h+='</div></div>';
+      });
+    }
+
+    // ── RESOLVED PLAYS ──
+    if(resolved.length){
+      h+='<div style="font-size:12px;letter-spacing:2px;color:var(--muted);font-family:var(--mono);margin:14px 0 8px">✅ RESOLVED ('+resolved.length+')</div>';
+      resolved.slice().reverse().forEach(r=>{
+        const isW=r.hit;
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:'+(isW?'rgba(0,255,170,.03)':'rgba(255,23,68,.03)')+';border:1px solid '+(isW?'rgba(0,255,170,.08)':'rgba(255,23,68,.08)')+';border-radius:8px;margin-bottom:4px;font-size:12px">';
+        h+='<div style="flex:1"><div style="display:flex;align-items:center;gap:6px"><span style="color:'+(isW?'var(--g)':'var(--r)')+';font-weight:700;font-size:14px">'+(isW?'W':'L')+'</span>';
+        h+='<span style="color:#ddd;font-weight:600">'+r.player+'</span></div>';
+        if(r.type==='parlay'&&r.legs){
+          h+='<div style="font-size:10px;color:#667;padding-left:24px">'+r.legs.map(l=>l.player.split(' ')[0]).join(' + ')+'</div>';
+        } else {
+          h+='<div style="font-size:10px;color:#667;padding-left:24px">'+r.dir+' '+r.line+' '+(r.stat||'')+' @ '+r.book+'</div>';
+        }
+        h+='</div>';
+        h+='<div style="text-align:right;font-family:var(--mono)">';
+        if(isW){
+          h+='<div style="color:var(--g);font-weight:700;font-size:13px">+$'+(r.payout-r.wager).toFixed(2)+'</div>';
+        } else {
+          h+='<div style="color:var(--r);font-weight:700;font-size:13px">-$'+r.wager.toFixed(2)+'</div>';
+        }
+        h+='<div style="color:#556;font-size:9px">'+r.date+'</div>';
+        h+='</div>';
+        h+='<div style="margin-left:6px;display:flex;gap:2px">';
+        h+='<button style="padding:4px 6px;border-radius:4px;font-size:9px;cursor:pointer;background:none;border:1px solid rgba(255,255,255,.06);color:#556" onclick="unresolvePlay(\''+r.id+'\')" title="Undo">↩</button>';
+        h+='<button style="padding:4px 6px;border-radius:4px;font-size:9px;cursor:pointer;background:none;border:1px solid rgba(255,255,255,.06);color:#556" onclick="if(confirm(\'Delete?\'))deletePlay(\''+r.id+'\')" title="Delete">🗑</button>';
+        h+='</div></div>';
+      });
+    }
+
+    if(!S.results.length)h+='<div class="empty"><div style="font-size:32px;opacity:.3">📋</div><div style="font-size:14px;color:var(--muted);margin-top:8px">No plays logged yet</div><div style="font-size:13px;color:#556;margin-top:4px">Tap an edge card → expand it → hit LOG THIS PLAY<br>Or log your entire custom parlay from the SLIP tab</div></div>';
+
+    if(S.results.length)h+='<button style="width:100%;padding:10px;border-radius:8px;font-family:var(--mono);font-size:10px;cursor:pointer;background:rgba(255,23,68,.04);border:1px solid rgba(255,23,68,.1);color:var(--r);margin-top:14px;font-weight:700;letter-spacing:1px" onclick="if(confirm(\'Clear all plays?\'))S.results=[],save(),render()">CLEAR ALL</button>';
   }
 
   // ═══ SET TAB ═══
