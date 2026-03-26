@@ -321,7 +321,15 @@ function saveCustomRatings(){
 }
 loadCustomRatings();
 
-// ═══ STATE ═══
+// Dedup allBooks display array: keep one entry per book (best price)
+function dedupBooks(books){
+  const best={};
+  books.forEach(b=>{
+    const key=b.name.toLowerCase().replace(/\.(ag|com)$/,'');
+    if(!best[key]||americanToProb(b.price)<americanToProb(best[key].price)){best[key]=b}
+  });
+  return Object.values(best);
+}
 let S={tab:'scan',apiKey:'',bankroll:100,kellyMult:.25,scanning:false,scanProgress:0,scanStatus:'',
 edges:[],results:[],slips:[{name:'Slip 1',legs:[]}],activeSlip:0,filterSport:'ALL',sortBy:'ev',
 expandedIdx:null,minGrade:'B+',showSlipPanel:false,resolvingParlay:null,editingSlipLeg:null,
@@ -441,17 +449,19 @@ function getFilteredSorted(){
   return[...filtered].sort((a,b)=>S.sortBy==='ev'?b.ev-a.ev:S.sortBy==='kelly'?b.kelly-a.kelly:b.fairProb-a.fairProb);
 }
 
-// ═══ BOVADA DEDUP HELPER ═══
+// ═══ BOVADA + GENERAL BOOK DEDUP HELPER ═══
 function dedupBookmakers(bookmakers){
   const seen={};
   return bookmakers.filter(bk=>{
     const name=bk.title||bk.key||'';
-    // Normalize Bovada variants
-    const normalized=name.toLowerCase().replace(/\s+/g,'');
-    if(normalized.includes('bovada')){
-      if(seen['bovada'])return false;
-      seen['bovada']=true;return true;
-    }
+    // Normalize: lowercase, strip whitespace, strip .ag/.com suffixes
+    let normalized=name.toLowerCase().replace(/\s+/g,'').replace(/\.(ag|com|net|io)$/,'');
+    // Merge known variants
+    if(normalized.includes('bovada'))normalized='bovada';
+    if(normalized.includes('betonline'))normalized='betonline';
+    if(normalized.includes('betrivers'))normalized='betrivers';
+    if(normalized.includes('fanduel'))normalized='fanduel';
+    if(normalized.includes('draftkings'))normalized='draftkings';
     if(seen[normalized])return false;
     seen[normalized]=true;return true;
   });
@@ -502,17 +512,27 @@ async function runFullScan(){
                 (bk.markets||[]).forEach(mkt=>{
                   const outcomes=mkt.outcomes||[],byPlayer={};
                   outcomes.forEach(o=>{
-                    const key=(o.description||'Unknown')+'_'+mkt.key;
-                    if(!byPlayer[key])byPlayer[key]={player:o.description||'Unknown',market:mkt.key,overs:[],unders:[]};
+                    // Include point in key so Over 0.5 and Over 1.5 stay separate
+                    const ptKey=o.point!=null?'_@'+o.point:'';
+                    const key=(o.description||'Unknown')+'_'+mkt.key+ptKey;
+                    if(!byPlayer[key])byPlayer[key]={player:o.description||'Unknown',market:mkt.key,point:o.point,overs:[],unders:[]};
                     if(o.name==='Over')byPlayer[key].overs.push({book:bk.title,price:o.price,point:o.point});
                     if(o.name==='Under')byPlayer[key].unders.push({book:bk.title,price:o.price,point:o.point});
                     if(o.name==='Yes')byPlayer[key].overs.push({book:bk.title,price:o.price,point:null});
                     if(o.name==='No')byPlayer[key].unders.push({book:bk.title,price:o.price,point:null});
                   });
                   Object.values(byPlayer).forEach(pl=>{
-                    const key=pl.player+'_'+pl.market;
+                    // Include point in playerLines key so different lines stay separate across books
+                    const ptSuffix=pl.point!=null?'_@'+pl.point:'';
+                    const key=pl.player+'_'+pl.market+ptSuffix;
                     if(!playerLines[key])playerLines[key]={player:pl.player,market:pl.market,books:[],event:event};
-                    pl.overs.forEach((ov,i)=>{playerLines[key].books.push({book:ov.book,overPrice:ov.price,underPrice:pl.unders[i]?pl.unders[i].price:null,point:ov.point})});
+                    pl.overs.forEach((ov,i)=>{
+                      // Dedup: skip if this book already has an entry for this line
+                      const existing=playerLines[key].books.find(b=>b.book===ov.book);
+                      if(!existing){
+                        playerLines[key].books.push({book:ov.book,overPrice:ov.price,underPrice:pl.unders[i]?pl.unders[i].price:null,point:ov.point});
+                      }
+                    });
                   });
                 });
               });
@@ -535,7 +555,7 @@ async function runFullScan(){
                 if(bestOverProb&&fairOver>bestOverProb){
                   const ev=calcEv(fairOver,bestOverProb);
                   if(ev>=.02){const k=kellyF(fairOver,bestOverProb,S.kellyMult);
-                  allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'OVER',fairProb:fairOver,bookProb:bestOverProb,bestBook:bestOverBook.book,bestPrice:bestOverBook.overPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:pl.books.map(b=>({name:b.book,price:b.overPrice})).filter(b=>b.price),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
+                  allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'OVER',fairProb:fairOver,bookProb:bestOverProb,bestBook:bestOverBook.book,bestPrice:bestOverBook.overPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:dedupBooks(pl.books.map(b=>({name:b.book,price:b.overPrice})).filter(b=>b.price)),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
                 }
                 // Check UNDER edge
                 if(underPrices.length){
@@ -544,7 +564,7 @@ async function runFullScan(){
                   if(bestUnderProb&&fairUnder>bestUnderProb){
                     const ev=calcEv(fairUnder,bestUnderProb);
                     if(ev>=.02){const k=kellyF(fairUnder,bestUnderProb,S.kellyMult);
-                    allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'UNDER',fairProb:fairUnder,bookProb:bestUnderProb,bestBook:bestUnderBook.book,bestPrice:bestUnderBook.underPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:pl.books.map(b=>({name:b.book,price:b.underPrice})).filter(b=>b.price),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
+                    allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'UNDER',fairProb:fairUnder,bookProb:bestUnderProb,bestBook:bestUnderBook.book,bestPrice:bestUnderBook.underPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:dedupBooks(pl.books.map(b=>({name:b.book,price:b.underPrice})).filter(b=>b.price)),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
                   }
                 }
               });
@@ -709,7 +729,7 @@ async function runFullScan(){
                   if(oc.name==='Yes'||oc.name==='No')direction=oc.name.toUpperCase();
                   if(oc.name==='Draw'){displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');direction='DRAW'}
 
-                  const edgeObj={player:displayName,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(mktKey),line:line,direction:direction,fairProb:finalFair,bookProb:bestBookProb,bestBook:bestBook.book,bestPrice:bestBook.price,ev:finalEv,grade,kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:oc.books.map(b=>({name:b.book,price:b.price})),event:(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD'),time:new Date(gev.commence_time).toLocaleString(),source};
+                  const edgeObj={player:displayName,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(mktKey),line:line,direction:direction,fairProb:finalFair,bookProb:bestBookProb,bestBook:bestBook.book,bestPrice:bestBook.price,ev:finalEv,grade,kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:dedupBooks(oc.books.map(b=>({name:b.book,price:b.price}))),event:(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD'),time:new Date(gev.commence_time).toLocaleString(),source};
 
                   // Add model details if available
                   if(modelResult&&(source==='model'||source==='both')){
