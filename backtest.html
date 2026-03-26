@@ -190,6 +190,8 @@ function backtestGames(games,staticRatings,hca,spreadStd,totalStd,minGames=15,is
 
   // Rolling stats tracker: {team: {gp, ptsFor, ptsAgainst}}
   const tracker={};
+  // Track league-wide average total for totals betting
+  const leagueTotalTracker={gp:0,sum:0};
 
   function getTeamKey(name){return name.toLowerCase().trim()}
 
@@ -245,13 +247,19 @@ function backtestGames(games,staticRatings,hca,spreadStd,totalStd,minGames=15,is
     const predMargin=(hr.net-ar.net)+hca;
     const predTotal=((hr.off+ar.def)/2)+((ar.off+hr.def)/2);
 
+    // ═══ REALISTIC PAYOUTS ═══
+    // Standard -110 juice: win = +0.909u, lose = -1.0u
+    // Need 52.4% win rate just to break even at -110
+    const WIN_PAYOUT=0.909;// what you win at -110
+    const LOSS=-1.0;
+
     // ML: bet if model >57% either side
     if(modelHP>0.57){
       res.ml.bets++;
-      if(g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
+      if(g.home_win){res.ml.wins++;res.ml.pnl.push(WIN_PAYOUT)}else{res.ml.pnl.push(LOSS)}
     }else if(modelHP<0.43){
       res.ml.bets++;
-      if(!g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
+      if(!g.home_win){res.ml.wins++;res.ml.pnl.push(WIN_PAYOUT)}else{res.ml.pnl.push(LOSS)}
     }
 
     // Spread: model predicts margin, simulate against a -3 line
@@ -261,29 +269,36 @@ function backtestGames(games,staticRatings,hca,spreadStd,totalStd,minGames=15,is
       if(coverP>0.57){
         res.spread.bets++;
         const favMargin=predMargin>0?g.margin:-g.margin;
-        if(favMargin+simSpread>0){res.spread.wins++;res.spread.pnl.push(1)}else{res.spread.pnl.push(-1)}
+        if(favMargin+simSpread>0){res.spread.wins++;res.spread.pnl.push(WIN_PAYOUT)}else{res.spread.pnl.push(LOSS)}
       }
     }
 
-    // Total: model predicts total, simulate against the predicted total rounded to nearest 5
+    // Total: use rolling league average as the simulated "book line"
+    // Track league total average from all prior games
     if(predTotal){
-      const refLine=Math.round(predTotal/5)*5;// use model's own prediction as baseline
-      // Only bet if predicted total is 4+ pts away from round number
-      if(Math.abs(predTotal-refLine)>4){
-        const overP=predictOver(predTotal,refLine,totalStd);
-        if(overP>0.57){
-          res.total.bets++;
-          if(g.total>refLine){res.total.wins++;res.total.pnl.push(1)}else{res.total.pnl.push(-1)}
-        }else if(overP<0.43){
-          res.total.bets++;
-          if(g.total<refLine){res.total.wins++;res.total.pnl.push(1)}else{res.total.pnl.push(-1)}
+      // Use the running league average total as what a book would set
+      const leagueTotal=leagueTotalTracker.gp>=20?leagueTotalTracker.sum/leagueTotalTracker.gp:null;
+      if(leagueTotal){
+        // Bet when model's predicted total deviates from league avg by 3+ pts
+        const diff=predTotal-leagueTotal;
+        if(Math.abs(diff)>3){
+          const overP=predictOver(predTotal,leagueTotal,totalStd);
+          if(overP>0.57){// model says over
+            res.total.bets++;
+            if(g.total>leagueTotal){res.total.wins++;res.total.pnl.push(WIN_PAYOUT)}else{res.total.pnl.push(LOSS)}
+          }else if(overP<0.43){// model says under
+            res.total.bets++;
+            if(g.total<leagueTotal){res.total.wins++;res.total.pnl.push(WIN_PAYOUT)}else{res.total.pnl.push(LOSS)}
+          }
         }
       }
     }
 
     preds.push({...g,modelHP,predMargin,predTotal});
 
-    // Update tracker AFTER prediction (no lookahead)
+    // Update trackers AFTER prediction (no lookahead)
+    leagueTotalTracker.gp++;
+    leagueTotalTracker.sum+=g.total;
     if(!isNCAA){
       updateTracker(g.home_team,g.home_score,g.away_score);
       updateTracker(g.away_team,g.away_score,g.home_score);
@@ -395,12 +410,11 @@ function renderResults(nba,ncaab,mlb,nbaTotal,ncaabTotal,mlbTotal,el){
   // Caveats
   h+='<div class="caveat">';
   h+='<strong>⚠️ Important context:</strong><br>';
-  h+='• <strong>NBA uses rolling ratings</strong> — each game only uses data from prior games. No lookahead bias. The first ~15 games per team are skipped while ratings stabilize.<br>';
-  h+='• <strong>MLB uses rolling ratings</strong> — same approach, first ~20 games skipped. Run differential builds per team over the season.<br>';
-  h+='• <strong>NCAAB uses pre-tournament KenPom ratings</strong> — these were published before the tournament started, so no lookahead bias there either.<br>';
-  h+='• Without actual closing odds, we simulate with fixed thresholds (57%+). Real edges depend on finding a book with worse-than-fair odds.<br>';
-  h+='• This tests the MODEL layer only. Cross-book edges (your primary edge source) need historical odds snapshots to backtest.<br>';
-  h+='• <strong>55%+ win rate on ML is strong. 52-54% is the realistic target against real book odds.</strong>';
+  h+='• <strong>All bets simulated at -110 juice</strong> — win +0.909u, lose -1.0u. You need 52.4% WR just to break even. This is realistic.<br>';
+  h+='• <strong>NBA/MLB use rolling ratings</strong> — each game only uses data from prior games. No lookahead bias. First 15-20 games per team skipped.<br>';
+  h+='• <strong>NCAAB uses pre-tournament KenPom ratings</strong> — published before the tournament, no lookahead.<br>';
+  h+='• We bet at a fixed 57% threshold. The live scanner finds games where the book\'s price implies LESS than your model — which is a sharper edge than this flat threshold.<br>';
+  h+='• <strong>Positive ROI at -110 juice = the model has genuine predictive power. Breakeven is 52.4% WR.</strong>';
   h+='</div>';
 
   h+='<div class="footer">+EV Scanner v4 • Model Backtest • March 2026</div>';
@@ -419,6 +433,7 @@ function renderResults(nba,ncaab,mlb,nbaTotal,ncaabTotal,mlbTotal,el){
 function statsBlock(data,label,totalGames){
   const r=data.res;
   let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">${totalGames} games fetched • ${data.matched} matched • ${data.skipped} skipped${data.tooEarly?' • '+data.tooEarly+' too early (building ratings)':''}</div>`;
+  h+='<div style="font-size:10px;color:var(--gold);margin-bottom:8px;font-family:var(--mono)">All bets simulated at -110 juice (need 52.4% WR to break even)</div>';
   h+='<div class="row r3">';
   for(const[mkt,name]of [['ml','Moneyline'],['spread','Spread'],['total','Total']]){
     const d=r[mkt];
