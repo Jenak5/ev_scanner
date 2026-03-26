@@ -668,9 +668,10 @@ async function runFullScan(){
                       const scaledMargin=teamMargin*marginScale;
                       const scaledStd=modelResult.spreadStd*Math.sqrt(marginScale);// std scales with sqrt
 
-                      // P(cover) = P(actual margin > spread line)
-                      // = normalCdf((predicted_margin - spread_line) / std)
-                      const spreadDiff=scaledMargin-oc.point;// positive = model thinks team covers
+                      // P(cover) = P(actual_margin + spread_line > 0)
+                      // API gives spread as negative for favorites (e.g. -7.5), positive for dogs (+7.5)
+                      // Cover = actual margin exceeds the line → use addition with API sign
+                      const spreadDiff=scaledMargin+oc.point;// positive = model thinks team covers
                       const coverProb=normalCdf(spreadDiff/scaledStd);
                       if(coverProb>bestBookProb){
                         useModelProb=coverProb;
@@ -871,7 +872,7 @@ function render(){
                 const teams=edge.event.split(' vs ');
                 h+='<div style="font-size:11px;color:var(--muted)">Ratings: '+(teams[0]||'')+' ('+edge.homeRating.toFixed(1)+') vs '+(teams[1]||'')+' ('+edge.awayRating.toFixed(1)+')</div>';
               }
-              if(edge.predictedMargin!=null)h+='<div style="font-size:11px;color:var(--muted)">Predicted margin: <span style="color:var(--cyan)">'+(edge.predictedMargin>0?'Home −'+edge.predictedMargin.toFixed(1):'Away −'+Math.abs(edge.predictedMargin).toFixed(1))+'</span></div>';
+              if(edge.predictedMargin!=null)h+='<div style="font-size:11px;color:var(--muted)">Predicted margin: <span style="color:var(--cyan)">'+(edge.predictedMargin>0?'Home by '+edge.predictedMargin.toFixed(1):'Away by '+Math.abs(edge.predictedMargin).toFixed(1))+'</span></div>';
               if(edge.predictedTotal!=null)h+='<div style="font-size:11px;color:var(--muted)">Predicted total: <span style="color:var(--cyan)">'+edge.predictedTotal.toFixed(1)+'</span></div>';
               h+='</div>';
             }
