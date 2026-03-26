@@ -539,7 +539,7 @@ async function runFullScan(){
 
               // Analyze each player line for cross-book edges
               Object.values(playerLines).forEach(pl=>{
-                if(!pl.books.length)return;
+                if(pl.books.length<3)return;// need 3+ books for reliable consensus
                 const consensusPoint=pl.books.map(b=>b.point).filter(p=>p!=null)[0]||'Yes';
                 const overPrices=pl.books.map(b=>b.overPrice).filter(p=>p!=null);
                 const underPrices=pl.books.map(b=>b.underPrice).filter(p=>p!=null);
@@ -552,7 +552,7 @@ async function runFullScan(){
                 // Check OVER edge
                 const bestOverBook=pl.books.reduce((best,b)=>b.overPrice!=null&&americanToProb(b.overPrice)<americanToProb(best.overPrice||999)?b:best,pl.books[0]);
                 const bestOverProb=bestOverBook.overPrice?americanToProb(bestOverBook.overPrice):null;
-                if(bestOverProb&&fairOver>bestOverProb){
+                if(bestOverProb&&fairOver>bestOverProb&&fairOver>=.05){// min 5% fair prob — skip extreme longshots
                   const ev=calcEv(fairOver,bestOverProb);
                   if(ev>=.02){const k=kellyF(fairOver,bestOverProb,S.kellyMult);
                   allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'OVER',fairProb:fairOver,bookProb:bestOverProb,bestBook:bestOverBook.book,bestPrice:bestOverBook.overPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:dedupBooks(pl.books.map(b=>({name:b.book,price:b.overPrice})).filter(b=>b.price)),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
@@ -561,7 +561,7 @@ async function runFullScan(){
                 if(underPrices.length){
                   const bestUnderBook=pl.books.reduce((best,b)=>b.underPrice!=null&&americanToProb(b.underPrice)<americanToProb(best.underPrice||999)?b:best,pl.books[0]);
                   const bestUnderProb=bestUnderBook.underPrice?americanToProb(bestUnderBook.underPrice):null;
-                  if(bestUnderProb&&fairUnder>bestUnderProb){
+                  if(bestUnderProb&&fairUnder>bestUnderProb&&fairUnder>=.05){// min 5% fair prob
                     const ev=calcEv(fairUnder,bestUnderProb);
                     if(ev>=.02){const k=kellyF(fairUnder,bestUnderProb,S.kellyMult);
                     allEdges.push({player:pl.player,sport:sport.name,sportEmoji:sport.e,sportColor:sport.c,stat:formatMarket(pl.market),line:consensusPoint,direction:'UNDER',fairProb:fairUnder,bookProb:bestUnderProb,bestBook:bestUnderBook.book,bestPrice:bestUnderBook.underPrice,ev,grade:getGrade(ev),kelly:k*100,wager:Math.round(S.bankroll*k*100)/100,allBooks:dedupBooks(pl.books.map(b=>({name:b.book,price:b.underPrice})).filter(b=>b.price)),event:pl.event.home_team+' vs '+pl.event.away_team,time:new Date(pl.event.commence_time).toLocaleString(),source:'cross-book'})}
@@ -621,7 +621,7 @@ async function runFullScan(){
                 oKeys.forEach(ok=>{fairProbs[ok]=avgImplied[ok]/totalImp});
 
                 oKeys.forEach(ok=>{
-                  const oc=outcomes[ok];if(!oc.books.length)return;
+                  const oc=outcomes[ok];if(oc.books.length<3)return;// need 3+ books for reliable consensus
                   const bestBook=oc.books.reduce((best,b)=>americanToProb(b.price)<americanToProb(best.price)?b:best,oc.books[0]);
                   const bestBookProb=americanToProb(bestBook.price);
                   const fair=fairProbs[ok];
@@ -693,6 +693,7 @@ async function runFullScan(){
                   }
 
                   if(finalEv<.01)return;
+                  if(finalFair<.05)return;// skip extreme longshots (under 5% fair prob)
                   const grade=getGrade(finalEv),k=kellyF(finalFair,bestBookProb,S.kellyMult);
                   let direction=oc.name,line=oc.point!=null?oc.point:'';
                   let displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');
