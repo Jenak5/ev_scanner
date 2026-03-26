@@ -633,81 +633,52 @@ async function runFullScan(){
                   let useModelProb=null;
 
                   // ── MODEL: MONEYLINE ──
-                  if(modelResult&&(mktKey==='h2h'||mktKey==='h2h_h1'||mktKey==='h2h_h2')&&oc.point==null){
+                  // Only standard moneylines (not 3-way, not partial game)
+                  if(modelResult&&mktKey==='h2h'&&oc.point==null){
                     if(oc.name===gev.home_team){
                       useModelProb=modelResult.homeProb;
-                      modelEdge=useModelProb>bestBookProb?calcEv(useModelProb,bestBookProb):0;
                     } else if(oc.name===gev.away_team){
                       useModelProb=modelResult.awayProb;
-                      modelEdge=useModelProb>bestBookProb?calcEv(useModelProb,bestBookProb):0;
                     }
                   }
 
-                  // ── MODEL: SPREADS ──
-                  // Model predicts margin → compare to book spread → probability of covering
+                  // ── MODEL: STANDARD SPREADS ONLY ──
+                  // Alt spreads excluded — our model isn't precise enough to outprice books there
                   if(modelResult&&modelResult.predictedMargin!=null&&modelResult.spreadStd&&
-                     (mktKey==='spreads'||mktKey==='spreads_h1'||mktKey==='spreads_h2'||
-                      mktKey.startsWith('spreads_q')||mktKey.startsWith('spreads_p')||
-                      mktKey.startsWith('spreads_1st')||mktKey==='alternate_spreads')&&
-                     oc.point!=null){
-                    // For spreads: outcome name = team name, point = spread line (e.g. -7.5)
-                    // Model predicted margin is from home perspective (positive = home wins by X)
+                     mktKey==='spreads'&&oc.point!=null){
                     let teamMargin=null;
-                    if(oc.name===gev.home_team){
-                      teamMargin=modelResult.predictedMargin;// home perspective
-                    } else if(oc.name===gev.away_team){
-                      teamMargin=-modelResult.predictedMargin;// away perspective (flip)
-                    }
+                    if(oc.name===gev.home_team) teamMargin=modelResult.predictedMargin;
+                    else if(oc.name===gev.away_team) teamMargin=-modelResult.predictedMargin;
                     if(teamMargin!=null){
-                      // Half-time/quarter spreads: scale margin proportionally
-                      let marginScale=1.0;
-                      if(mktKey.includes('_h1')||mktKey.includes('_h2'))marginScale=0.5;
-                      if(mktKey.includes('_q')||mktKey.includes('_p'))marginScale=0.25;
-                      if(mktKey.includes('_1st_5'))marginScale=0.56;// ~5/9 innings
-                      if(mktKey.includes('_1st_3'))marginScale=0.33;
-                      const scaledMargin=teamMargin*marginScale;
-                      const scaledStd=modelResult.spreadStd*Math.sqrt(marginScale);// std scales with sqrt
-
-                      // P(cover) = P(actual_margin + spread_line > 0)
-                      // API gives spread as negative for favorites (e.g. -7.5), positive for dogs (+7.5)
-                      // Cover = actual margin exceeds the line → use addition with API sign
-                      const spreadDiff=scaledMargin+oc.point;// positive = model thinks team covers
-                      const coverProb=normalCdf(spreadDiff/scaledStd);
-                      if(coverProb>bestBookProb){
-                        useModelProb=coverProb;
-                        modelEdge=calcEv(coverProb,bestBookProb);
-                      }
+                      // P(cover) = P(actual_margin + spread > 0) = normalCdf((predicted + spread) / std)
+                      const coverProb=normalCdf((teamMargin+oc.point)/modelResult.spreadStd);
+                      useModelProb=coverProb;
                     }
                   }
 
-                  // ── MODEL: TOTALS ──
-                  // Model predicts total score → compare to book total → probability of over/under
+                  // ── MODEL: STANDARD TOTALS ONLY ──
+                  // Alt totals excluded for same reason
                   if(modelResult&&modelResult.predictedTotal!=null&&modelResult.totalStd&&
-                     (mktKey==='totals'||mktKey==='totals_h1'||mktKey==='totals_h2'||
-                      mktKey.startsWith('totals_q')||mktKey.startsWith('totals_p')||
-                      mktKey.startsWith('totals_1st')||mktKey==='alternate_totals'||mktKey==='team_totals')&&
-                     oc.point!=null&&(oc.name==='Over'||oc.name==='Under')){
-                    // Scale for partial-game markets
-                    let totalScale=1.0;
-                    if(mktKey.includes('_h1')||mktKey.includes('_h2'))totalScale=0.5;
-                    if(mktKey.includes('_q')||mktKey.includes('_p'))totalScale=0.25;
-                    if(mktKey.includes('_1st_5'))totalScale=0.56;
-                    if(mktKey.includes('_1st_3'))totalScale=0.33;
-                    if(mktKey.includes('_1st_1'))totalScale=0.11;
-                    const scaledPredicted=modelResult.predictedTotal*totalScale;
-                    const scaledStd=modelResult.totalStd*Math.sqrt(totalScale);
+                     mktKey==='totals'&&oc.point!=null&&(oc.name==='Over'||oc.name==='Under')){
+                    const totalDiff=modelResult.predictedTotal-oc.point;
+                    const overProb=normalCdf(totalDiff/modelResult.totalStd);
+                    useModelProb=oc.name==='Over'?overProb:(1-overProb);
+                  }
 
-                    // For team_totals, predicted is half the game total (one team's score)
-                    const predForMarket=mktKey==='team_totals'?modelResult.predictedTotal/2:scaledPredicted;
-                    const stdForMarket=mktKey==='team_totals'?modelResult.totalStd/Math.sqrt(2):scaledStd;
-
-                    const totalDiff=predForMarket-oc.point;
-                    // P(over) = P(actual > line) = normalCdf((predicted - line) / std)
-                    const overProb=normalCdf(totalDiff/stdForMarket);
-                    const targetProb=oc.name==='Over'?overProb:(1-overProb);
-                    if(targetProb>bestBookProb){
-                      useModelProb=targetProb;
-                      modelEdge=calcEv(targetProb,bestBookProb);
+                  // ── CONFIDENCE CAP ──
+                  // Our model is simple ratings — cap how far it can deviate from cross-book consensus
+                  // Max 15 percentage points above cross-book fair probability
+                  if(useModelProb!=null){
+                    const maxModelProb=Math.min(useModelProb, fair+0.15);
+                    useModelProb=Math.max(useModelProb, 0.02);// floor at 2%
+                    useModelProb=Math.min(useModelProb, 0.98);// ceiling at 98%
+                    // Only count as model edge if capped probability still beats the book
+                    if(maxModelProb>bestBookProb){
+                      modelEdge=calcEv(maxModelProb,bestBookProb);
+                      useModelProb=maxModelProb;
+                    } else {
+                      modelEdge=0;
+                      useModelProb=null;
                     }
                   }
 
@@ -726,7 +697,11 @@ async function runFullScan(){
                   let direction=oc.name,line=oc.point!=null?oc.point:'';
                   let displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');
                   if(oc.name==='Over'||oc.name==='Under')direction=oc.name.toUpperCase();
-                  if(oc.name===gev.home_team||oc.name===gev.away_team){displayName=oc.name;direction=oc.point!=null?(oc.point>0?'+'+oc.point:String(oc.point)):'ML'}
+                  if(oc.name===gev.home_team||oc.name===gev.away_team){
+                    displayName=oc.name;
+                    if(oc.point!=null){direction=oc.point>0?'+'+oc.point:String(oc.point);line=''}// show spread in direction only, clear line to prevent duplication
+                    else direction='ML';
+                  }
                   if(oc.name==='Yes'||oc.name==='No')direction=oc.name.toUpperCase();
                   if(oc.name==='Draw'){displayName=(gev.home_team||'TBD')+' vs '+(gev.away_team||'TBD');direction='DRAW'}
 
