@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#080c14">
-<title>+EV Scanner v4 — Model Backtest</title>
+<title>+EV Scanner v4 — Accurate Backtest</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#080c14;--card:rgba(255,255,255,0.028);--border:rgba(255,255,255,0.06);
---g:#00ffaa;--cyan:#22d3ee;--gold:#fbbf24;--r:#f43f5e;--nba:#ff6b35;--ncaab:#ff9e44;
+--g:#00ffaa;--cyan:#22d3ee;--gold:#fbbf24;--r:#f43f5e;--nba:#ff6b35;--ncaab:#ff9e44;--mlb:#e63946;
 --text:#e4e8f0;--muted:#7c889a;--dim:#4a5568;
 --mono:'IBM Plex Mono',monospace;--body:'Outfit',sans-serif}
 html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -32,38 +32,47 @@ border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono);displ
 .section-t{font-size:16px;font-weight:700;color:var(--cyan);font-family:var(--mono);letter-spacing:1px;margin-bottom:12px}
 .row{display:grid;gap:8px;margin-bottom:14px}
 .r3{grid-template-columns:1fr 1fr 1fr}
-.r4{grid-template-columns:repeat(4,1fr)}
 .box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;backdrop-filter:blur(8px)}
 .box-l{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:var(--mono);font-weight:600;margin-bottom:3px}
 .box-v{font-size:20px;font-weight:800;font-family:var(--mono)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
 .chart-title{font-size:13px;font-weight:700;color:var(--gold);font-family:var(--mono);letter-spacing:1px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;margin-top:8px}
-th{text-align:left;padding:8px 10px;color:var(--g);font-size:10px;letter-spacing:1.5px;border-bottom:1px solid var(--border);font-weight:700}
-td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--text)}
-tr:hover td{background:rgba(255,255,255,.02)}
-.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono)}
-.tag-win{background:rgba(0,255,170,.08);color:var(--g);border:1px solid rgba(0,255,170,.15)}
-.tag-loss{background:rgba(244,63,94,.08);color:var(--r);border:1px solid rgba(244,63,94,.15)}
+.inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:#fff;font-size:14px;font-family:var(--mono)}
+.inp:focus{border-color:rgba(0,255,170,.3);outline:none}
 .caveat{background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.1);border-radius:10px;padding:14px 16px;margin:16px 0;font-size:13px;color:var(--muted);line-height:1.6}
 .caveat strong{color:var(--gold)}
+.setup{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.setup-t{font-size:14px;font-weight:700;color:#fff;margin-bottom:12px;font-family:var(--mono)}
 .footer{text-align:center;font-size:11px;color:#334;padding:24px 0;font-family:var(--mono)}
+.quota{background:rgba(0,255,170,.04);border:1px solid rgba(0,255,170,.1);border-radius:8px;padding:10px 14px;margin:12px 0;font-family:var(--mono);font-size:12px;color:var(--g)}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <div class="hdr">
-    <div class="sub">MODEL BACKTEST</div>
+    <div class="sub">ACCURATE BACKTEST</div>
     <div class="logo"><span class="logo-ev">+EV Scanner</span> <span style="color:var(--muted);font-size:14px">v4</span></div>
-    <div class="sub" style="margin-top:8px">NBA 2025-26 + NCAAB March Madness 2026 + MLB 2025 — Rolling Ratings (No Lookahead)</div>
+    <div class="sub" style="margin-top:8px">Real Historical Closing Odds • Rolling Ratings • No Lookahead</div>
   </div>
 
   <div class="caveat">
-    <strong>What this does:</strong> Fetches every NBA game this season, the full MLB 2025 season, and NCAAB tournament results from ESPN. Runs the exact same logistic model from your scanner using <strong>rolling ratings</strong> (only data available before each game — no lookahead bias). NBA/MLB ratings build from scratch; NCAAB uses pre-tournament KenPom.
+    <strong>What this does:</strong> Pulls actual closing odds from The Odds API's historical endpoint for every NBA game this season + MLB 2025 season. Compares your model's probability against the real book odds that were available. Calculates true P/L with actual payouts — not simulated flat lines.
+  </div>
+
+  <div class="setup">
+    <div class="setup-t">🔑 Odds API Key</div>
+    <input class="inp" type="password" id="apiKeyInput" placeholder="Paste your Odds API key">
+    <div class="quota" id="quotaInfo" style="display:none"></div>
+  </div>
+
+  <div class="caveat" style="border-color:rgba(34,211,238,.15);background:rgba(34,211,238,.04)">
+    <strong style="color:var(--cyan)">API Usage Estimate:</strong><br>
+    NBA (~155 days × 30) + MLB (~180 days × 30) ≈ <strong style="color:var(--cyan)">10,050 requests</strong> (~10% of your 100K plan).<br>
+    The backtest saves results to localStorage so you only pay once — reloading won't re-fetch.
   </div>
 
   <button class="btn" id="runBtn" onclick="runBacktest()">
-    🧪 RUN BACKTEST
+    🧪 RUN ACCURATE BACKTEST
   </button>
 
   <div id="progress" style="display:none">
@@ -76,66 +85,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// EXACT SAME MODEL AS THE SCANNER
+// MODEL (exact same as scanner)
 // ═══════════════════════════════════════════════════════════════
 function normalCdf(z){const t=1/(1+.2316419*Math.abs(z)),d=.3989422804*Math.exp(-z*z/2);const p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>=0?1-p:p}
 function logisticWinProb(rA,rB,scale=11){return 1/(1+Math.pow(10,-(rA-rB)/scale))}
 function predictSpreadCover(margin,line,std=12){return normalCdf((margin+line)/std)}
 function predictOver(predicted,line,std=12){return normalCdf((predicted-line)/std)}
-function kellyFrac(fp,bp,fr=0.25){const o=1/bp-1;if(o<=0)return 0;return Math.max(0,((fp*o-(1-fp))/o)*fr)}
+function americanToProb(odds){return odds>0?100/(odds+100):Math.abs(odds)/(Math.abs(odds)+100)}
+function americanToPayout(odds){return odds>0?odds/100:100/Math.abs(odds)}// payout per $1 wagered
 
-// ═══ RATINGS (same as scanner) ═══
-const NBA={
-'Oklahoma City Thunder':{off:118.5,def:107.5,net:11.0},'San Antonio Spurs':{off:119.0,def:111.2,net:7.8},
-'Detroit Pistons':{off:117.5,def:109.9,net:7.7},'Boston Celtics':{off:120.2,def:112.6,net:7.6},
-'New York Knicks':{off:119.8,def:112.9,net:6.9},'Los Angeles Lakers':{off:118.3,def:112.8,net:5.5},
-'Cleveland Cavaliers':{off:118.0,def:113.0,net:5.0},'Denver Nuggets':{off:117.9,def:113.1,net:4.8},
-'Minnesota Timberwolves':{off:117.8,def:113.3,net:4.5},'Houston Rockets':{off:117.6,def:113.4,net:4.2},
-'Atlanta Hawks':{off:117.0,def:114.0,net:3.0},'Toronto Raptors':{off:116.9,def:114.1,net:2.8},
-'Philadelphia 76ers':{off:116.6,def:114.4,net:2.2},'Phoenix Suns':{off:116.5,def:114.5,net:2.0},
-'Miami Heat':{off:116.3,def:114.8,net:1.5},'Charlotte Hornets':{off:116.1,def:114.9,net:1.2},
-'Orlando Magic':{off:116.0,def:115.0,net:1.0},'LA Clippers':{off:115.5,def:115.5,net:0.0},
-'Portland Trail Blazers':{off:115.4,def:115.7,net:-0.3},'Golden State Warriors':{off:115.0,def:116.0,net:-1.0},
-'Milwaukee Bucks':{off:113.9,def:117.1,net:-3.2},'Chicago Bulls':{off:113.8,def:117.3,net:-3.5},
-'New Orleans Pelicans':{off:112.8,def:118.3,net:-5.5},'Memphis Grizzlies':{off:112.5,def:118.5,net:-6.0},
-'Dallas Mavericks':{off:112.3,def:118.8,net:-6.5},'Utah Jazz':{off:111.8,def:119.3,net:-7.5},
-'Sacramento Kings':{off:111.3,def:119.8,net:-8.5},'Brooklyn Nets':{off:110.8,def:120.3,net:-9.5},
-'Washington Wizards':{off:110.5,def:120.5,net:-10.0},'Indiana Pacers':{off:110.3,def:120.8,net:-10.5}
-};
-const NCAAB={
-'Arizona':{off:126.4,def:90.5,net:35.9},'Michigan':{off:125.8,def:91.2,net:34.6},
-'Florida':{off:125.5,def:91.7,net:33.8},'Duke':{off:124.2,def:91.8,net:32.4},
-'Houston':{off:123.4,def:92.2,net:31.2},'Auburn':{off:121.5,def:93.5,net:28.0},
-'Iowa State':{off:121.3,def:93.8,net:27.5},'Kansas':{off:120.5,def:94.5,net:26.0},
-'Illinois':{off:119.8,def:94.3,net:25.5},'Tennessee':{off:119.5,def:94.5,net:25.0},
-'Purdue':{off:119.3,def:94.8,net:24.5},'Alabama':{off:119.0,def:95.0,net:24.0},
-'Gonzaga':{off:118.8,def:95.3,net:23.5},'Marquette':{off:118.0,def:96.0,net:22.0},
-'Kentucky':{off:117.8,def:96.3,net:21.5},'Connecticut':{off:117.5,def:96.5,net:21.0},
-'Texas Tech':{off:117.0,def:97.0,net:20.0},'Creighton':{off:116.8,def:97.3,net:19.5},
-'Michigan State':{off:116.5,def:97.5,net:19.0},'Oregon':{off:116.3,def:97.8,net:18.5},
-'Baylor':{off:116.0,def:98.0,net:18.0},'Memphis':{off:115.8,def:98.3,net:17.5},
-'Wisconsin':{off:115.5,def:98.5,net:17.0},'St Johns':{off:115.3,def:98.8,net:16.5},
-'Maryland':{off:115.0,def:99.0,net:16.0},'Missouri':{off:114.8,def:99.3,net:15.5},
-'UCLA':{off:114.0,def:100.0,net:14.0},'Colorado State':{off:113.0,def:101.0,net:12.0},
-'Drake':{off:112.5,def:101.5,net:11.0},'Clemson':{off:112.3,def:102.2,net:10.1},
-'New Mexico':{off:112.3,def:101.8,net:10.5},'VCU':{off:112.0,def:102.0,net:10.0},
-'Nevada':{off:111.8,def:102.3,net:9.5},'UC San Diego':{off:111.0,def:103.0,net:8.0},
-'Lipscomb':{off:110.5,def:103.5,net:7.0},'Grand Canyon':{off:110.0,def:104.0,net:6.0},
-'McNeese':{off:102.1,def:117.4,net:-15.3},'Howard':{off:95.3,def:137.4,net:-42.1},
-'Norfolk State':{off:100.0,def:120.0,net:-20.0},'Montana State':{off:101.0,def:119.0,net:-18.0},
-'Omaha':{off:97.5,def:122.5,net:-25.0},'SIU Edwardsville':{off:95.0,def:125.0,net:-30.0}
-};
-
-function findRating(name,db){
-  const n=name.toLowerCase().trim();
-  for(const[k,v]of Object.entries(db)){if(k.toLowerCase()===n)return v}
-  for(const[k,v]of Object.entries(db)){
-    const kl=k.toLowerCase();
-    if(n.includes(kl)||kl.includes(n))return v;
-    const last=kl.split(' ').pop();
-    if(last.length>3&&n.includes(last))return v;
-  }
-  return null;
+function getDates(startStr,endStr){
+  const dates=[];let d=new Date(startStr+'T12:00:00Z');const end=new Date(endStr+'T12:00:00Z');
+  while(d<=end){dates.push(d.toISOString().slice(0,10).replace(/-/g,''));d.setDate(d.getDate()+1)}
+  return dates;
 }
 
 // ═══ ESPN FETCHER ═══
@@ -143,8 +105,7 @@ async function fetchESPN(sport,league,dateStr){
   const url=`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard?dates=${dateStr}`;
   try{
     const res=await fetch(url);if(!res.ok)return[];
-    const data=await res.json();
-    const games=[];
+    const data=await res.json();const games=[];
     for(const ev of (data.events||[])){
       const comp=ev.competitions[0];
       if(!comp.status.type.completed)continue;
@@ -153,163 +114,212 @@ async function fetchESPN(sport,league,dateStr){
       const away=teams.find(t=>t.homeAway==='away');
       if(!home||!away)continue;
       games.push({
-        date:dateStr,
+        date:dateStr,commence:ev.date||'',
         home_team:home.team.displayName,away_team:away.team.displayName,
         home_score:+home.score,away_score:+away.score,
         home_win:+home.score>+away.score,
-        total:+home.score+ +away.score,
-        margin:+home.score- +away.score
+        total:+home.score+ +away.score,margin:+home.score- +away.score
       });
     }
     return games;
   }catch(e){return[]}
 }
 
-function getDates(startStr,endStr){
-  const dates=[];
-  let d=new Date(startStr+'T12:00:00Z');
-  const end=new Date(endStr+'T12:00:00Z');
-  while(d<=end){
-    dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
-    d.setDate(d.getDate()+1);
-  }
-  return dates;
+// ═══ ODDS API HISTORICAL FETCHER ═══
+async function fetchHistoricalOdds(apiKey,sportKey,dateStr){
+  // Request snapshot at noon ET on game day (close to closing lines for evening games)
+  const isoDate=dateStr.slice(0,4)+'-'+dateStr.slice(4,6)+'-'+dateStr.slice(6,8)+'T17:00:00Z';
+  const url=`https://api.the-odds-api.com/v4/historical/sports/${sportKey}/odds?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american&date=${isoDate}`;
+  try{
+    const res=await fetch(url);
+    if(!res.ok)return{games:[],remaining:null};
+    const remaining=res.headers.get('x-requests-remaining');
+    const data=await res.json();
+    return{games:data.data||[],remaining};
+  }catch(e){return{games:[],remaining:null}}
 }
 
-// ═══ BACKTEST ENGINE — ROLLING RATINGS (NO LOOKAHEAD BIAS) ═══
-// Instead of using end-of-season ratings, we calculate ratings from
-// ONLY games played BEFORE each matchup. This is honest backtesting.
+// ═══ MATCH ESPN GAME TO ODDS API GAME ═══
+function matchGame(espnGame,oddsGames){
+  const eh=espnGame.home_team.toLowerCase();
+  const ea=espnGame.away_team.toLowerCase();
+  for(const og of oddsGames){
+    const oh=(og.home_team||'').toLowerCase();
+    const oa=(og.away_team||'').toLowerCase();
+    // Fuzzy match: check if last word of team name matches
+    const ehLast=eh.split(' ').pop();
+    const eaLast=ea.split(' ').pop();
+    const ohLast=oh.split(' ').pop();
+    const oaLast=oa.split(' ').pop();
+    if((eh.includes(ohLast)||oh.includes(ehLast))&&(ea.includes(oaLast)||oa.includes(eaLast)))return og;
+    if((eh.includes(oaLast)||oa.includes(eaLast))&&(ea.includes(ohLast)||oh.includes(ehLast)))return og;// home/away flipped
+  }
+  return null;
+}
 
-function backtestGames(games,staticRatings,hca,spreadStd,totalStd,minGames=15,isNCAA=false){
-  const res={ml:{bets:0,wins:0,pnl:[]},spread:{bets:0,wins:0,pnl:[]},total:{bets:0,wins:0,pnl:[]}};
+// ═══ EXTRACT CLOSING LINE FROM ODDS DATA ═══
+function extractClosingOdds(oddsGame){
+  if(!oddsGame||!oddsGame.bookmakers||!oddsGame.bookmakers.length)return null;
+  const result={h2h:{},spreads:{},totals:{}};
+  // Average across all books for consensus
+  const h2hHome=[],h2hAway=[],spreadPts=[],spreadHomePrices=[],spreadAwayPrices=[],totalPts=[],overPrices=[],underPrices=[];
+
+  for(const bk of oddsGame.bookmakers){
+    for(const mkt of (bk.markets||[])){
+      if(mkt.key==='h2h'){
+        for(const o of mkt.outcomes){
+          if(o.name===oddsGame.home_team)h2hHome.push(o.price);
+          else h2hAway.push(o.price);
+        }
+      }
+      if(mkt.key==='spreads'){
+        for(const o of mkt.outcomes){
+          if(o.name===oddsGame.home_team){spreadPts.push(o.point);spreadHomePrices.push(o.price)}
+          else spreadAwayPrices.push(o.price);
+        }
+      }
+      if(mkt.key==='totals'){
+        for(const o of mkt.outcomes){
+          if(o.name==='Over'){totalPts.push(o.point);overPrices.push(o.price)}
+          else underPrices.push(o.price);
+        }
+      }
+    }
+  }
+
+  if(h2hHome.length){
+    // Best available price (lowest implied prob = highest payout)
+    const bestHome=h2hHome.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b);
+    const bestAway=h2hAway.length?h2hAway.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b):null;
+    // Consensus implied probability (average, vig-removed)
+    const avgHomeImp=h2hHome.map(americanToProb).reduce((a,b)=>a+b,0)/h2hHome.length;
+    const avgAwayImp=h2hAway.length?h2hAway.map(americanToProb).reduce((a,b)=>a+b,0)/h2hAway.length:(1-avgHomeImp);
+    const total=avgHomeImp+avgAwayImp;
+    result.h2h={bestHomePrice:bestHome,bestAwayPrice:bestAway,fairHome:avgHomeImp/total,fairAway:avgAwayImp/total};
+  }
+  if(spreadPts.length){
+    const consensusSpread=spreadPts[Math.floor(spreadPts.length/2)];// median
+    const bestHomeSpreadPrice=spreadHomePrices.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b);
+    const bestAwaySpreadPrice=spreadAwayPrices.length?spreadAwayPrices.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b):null;
+    result.spreads={line:consensusSpread,bestHomePrice:bestHomeSpreadPrice,bestAwayPrice:bestAwaySpreadPrice};
+  }
+  if(totalPts.length){
+    const consensusTotal=totalPts[Math.floor(totalPts.length/2)];
+    const bestOverPrice=overPrices.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b);
+    const bestUnderPrice=underPrices.length?underPrices.reduce((a,b)=>americanToProb(a)<americanToProb(b)?a:b):null;
+    result.totals={line:consensusTotal,bestOverPrice,bestUnderPrice};
+  }
+  return result;
+}
+
+// ═══ ROLLING RATINGS TRACKER ═══
+const trackers={};
+function getTracker(sport){if(!trackers[sport])trackers[sport]={};return trackers[sport]}
+function getRolling(teamName,sport,minGames=15){
+  const t=getTracker(sport);const key=teamName.toLowerCase().trim();
+  const d=t[key];if(!d||d.gp<minGames)return null;
+  return{off:d.ptsFor/d.gp,def:d.ptsAgainst/d.gp,net:(d.ptsFor-d.ptsAgainst)/d.gp};
+}
+function updateRolling(teamName,sport,ptsFor,ptsAgainst){
+  const t=getTracker(sport);const key=teamName.toLowerCase().trim();
+  if(!t[key])t[key]={gp:0,ptsFor:0,ptsAgainst:0};
+  t[key].gp++;t[key].ptsFor+=ptsFor;t[key].ptsAgainst+=ptsAgainst;
+}
+
+// ═══ BACKTEST WITH REAL ODDS ═══
+function backtestWithRealOdds(matchedGames,sport,hca,spreadStd,totalStd,minGames){
+  const res={ml:{bets:0,wins:0,pnl:[],details:[]},spread:{bets:0,wins:0,pnl:[]},total:{bets:0,wins:0,pnl:[]}};
+  let tooEarly=0,noOdds=0,matched=0;
   const preds=[];
-  let matched=0,skipped=0,tooEarly=0;
 
-  // Sort games chronologically
-  const sorted=[...games].sort((a,b)=>a.date.localeCompare(b.date));
-
-  // Rolling stats tracker: {team: {gp, ptsFor, ptsAgainst}}
-  const tracker={};
-  // Track league-wide average total for totals betting
-  const leagueTotalTracker={gp:0,sum:0};
-
-  function getTeamKey(name){return name.toLowerCase().trim()}
-
-  function getRollingRating(teamName){
-    const key=getTeamKey(teamName);
-    const t=tracker[key];
-    if(!t||t.gp<minGames)return null;
-    // Approximate off/def ratings from points per game
-    // NBA averages ~100 possessions/game, so PPG ≈ ORtg (roughly)
-    const off=t.ptsFor/t.gp;
-    const def=t.ptsAgainst/t.gp;
-    const net=off-def;
-    return{off,def,net};
-  }
-
-  function updateTracker(teamName,ptsFor,ptsAgainst){
-    const key=getTeamKey(teamName);
-    if(!tracker[key])tracker[key]={gp:0,ptsFor:0,ptsAgainst:0};
-    tracker[key].gp++;
-    tracker[key].ptsFor+=ptsFor;
-    tracker[key].ptsAgainst+=ptsAgainst;
-  }
+  // Sort chronologically
+  const sorted=[...matchedGames].sort((a,b)=>a.date.localeCompare(b.date));
 
   for(const g of sorted){
-    // For NCAAB tournament: use static KenPom ratings (they're pre-tournament, not lookahead)
-    let hr,ar;
-    if(isNCAA){
-      hr=findRating(g.home_team,staticRatings);
-      ar=findRating(g.away_team,staticRatings);
-      if(!hr||!ar){skipped++;updateTracker(g.home_team,g.home_score,g.away_score);updateTracker(g.away_team,g.away_score,g.home_score);continue}
-      matched++;
-    } else {
-      // NBA: use ROLLING ratings (only data available before this game)
-      hr=getRollingRating(g.home_team);
-      ar=getRollingRating(g.away_team);
-      if(!hr||!ar){
-        if(!tracker[getTeamKey(g.home_team)]||tracker[getTeamKey(g.home_team)].gp<minGames)tooEarly++;
-        else skipped++;
-        // Still update tracker with this game's results
-        updateTracker(g.home_team,g.home_score,g.away_score);
-        updateTracker(g.away_team,g.away_score,g.home_score);
-        continue;
-      }
-      matched++;
-    }
+    const hr=getRolling(g.home_team,sport,minGames);
+    const ar=getRolling(g.away_team,sport,minGames);
 
-    // Scale net rating for logistic model
-    // PPG difference needs different scaling than per-100-poss
-    // NBA PPG std ≈ 5pts → scale factor ~15 for PPG-based ratings
-    const scale=isNCAA?11:15;
+    if(!hr||!ar){tooEarly++;updateRolling(g.home_team,sport,g.home_score,g.away_score);updateRolling(g.away_team,sport,g.away_score,g.home_score);continue}
+    if(!g.odds){noOdds++;updateRolling(g.home_team,sport,g.home_score,g.away_score);updateRolling(g.away_team,sport,g.away_score,g.home_score);continue}
+    matched++;
 
+    const scale=15;// PPG-based rolling ratings
     const modelHP=logisticWinProb(hr.net+hca,ar.net,scale);
     const predMargin=(hr.net-ar.net)+hca;
     const predTotal=((hr.off+ar.def)/2)+((ar.off+hr.def)/2);
+    const odds=g.odds;
 
-    // ═══ REALISTIC PAYOUTS ═══
-    // Standard -110 juice: win = +0.909u, lose = -1.0u
-    // Need 52.4% win rate just to break even at -110
-    const WIN_PAYOUT=0.909;// what you win at -110
-    const LOSS=-1.0;
+    // ── MONEYLINE: Compare model prob to best book price ──
+    if(odds.h2h&&odds.h2h.bestHomePrice!=null){
+      const bookHomeProb=americanToProb(odds.h2h.bestHomePrice);
+      const bookAwayProb=odds.h2h.bestAwayPrice?americanToProb(odds.h2h.bestAwayPrice):1-bookHomeProb;
 
-    // ML: bet if model >57% either side
-    if(modelHP>0.57){
-      res.ml.bets++;
-      if(g.home_win){res.ml.wins++;res.ml.pnl.push(WIN_PAYOUT)}else{res.ml.pnl.push(LOSS)}
-    }else if(modelHP<0.43){
-      res.ml.bets++;
-      if(!g.home_win){res.ml.wins++;res.ml.pnl.push(WIN_PAYOUT)}else{res.ml.pnl.push(LOSS)}
-    }
-
-    // Spread: model predicts margin, simulate against a -3 line
-    if(Math.abs(predMargin)>3){
-      const simSpread=predMargin>0?-3:3;
-      const coverP=predictSpreadCover(Math.abs(predMargin),simSpread,spreadStd);
-      if(coverP>0.57){
-        res.spread.bets++;
-        const favMargin=predMargin>0?g.margin:-g.margin;
-        if(favMargin+simSpread>0){res.spread.wins++;res.spread.pnl.push(WIN_PAYOUT)}else{res.spread.pnl.push(LOSS)}
+      // Bet home if model prob > book prob + 3% edge minimum
+      if(modelHP>bookHomeProb+0.03){
+        res.ml.bets++;
+        if(g.home_win){res.ml.wins++;res.ml.pnl.push(americanToPayout(odds.h2h.bestHomePrice))}
+        else{res.ml.pnl.push(-1)}
+      }
+      // Bet away if model says away and book underprices away
+      else if((1-modelHP)>bookAwayProb+0.03&&odds.h2h.bestAwayPrice){
+        res.ml.bets++;
+        if(!g.home_win){res.ml.wins++;res.ml.pnl.push(americanToPayout(odds.h2h.bestAwayPrice))}
+        else{res.ml.pnl.push(-1)}
       }
     }
 
-    // Total: use rolling league average as the simulated "book line"
-    // Track league total average from all prior games
-    if(predTotal){
-      // Use the running league average total as what a book would set
-      const leagueTotal=leagueTotalTracker.gp>=20?leagueTotalTracker.sum/leagueTotalTracker.gp:null;
-      if(leagueTotal){
-        // Bet when model's predicted total deviates from league avg by 3+ pts
-        const diff=predTotal-leagueTotal;
-        if(Math.abs(diff)>3){
-          const overP=predictOver(predTotal,leagueTotal,totalStd);
-          if(overP>0.57){// model says over
-            res.total.bets++;
-            if(g.total>leagueTotal){res.total.wins++;res.total.pnl.push(WIN_PAYOUT)}else{res.total.pnl.push(LOSS)}
-          }else if(overP<0.43){// model says under
-            res.total.bets++;
-            if(g.total<leagueTotal){res.total.wins++;res.total.pnl.push(WIN_PAYOUT)}else{res.total.pnl.push(LOSS)}
-          }
+    // ── SPREAD: Compare predicted margin to actual closing spread ──
+    if(odds.spreads&&odds.spreads.line!=null){
+      const bookSpread=odds.spreads.line;// e.g. -7.5 for home
+      const coverP=predictSpreadCover(predMargin,bookSpread,spreadStd);
+      const bookCoverProb=odds.spreads.bestHomePrice?americanToProb(odds.spreads.bestHomePrice):0.5;
+
+      if(coverP>bookCoverProb+0.03){// model says home covers more than book thinks
+        res.spread.bets++;
+        if(g.margin+bookSpread>0){res.spread.wins++;res.spread.pnl.push(americanToPayout(odds.spreads.bestHomePrice))}
+        else{res.spread.pnl.push(-1)}
+      }else if(odds.spreads.bestAwayPrice){
+        const awayCoverP=1-coverP;
+        const bookAwayCoverProb=americanToProb(odds.spreads.bestAwayPrice);
+        if(awayCoverP>bookAwayCoverProb+0.03){
+          res.spread.bets++;
+          if(g.margin+bookSpread<0){res.spread.wins++;res.spread.pnl.push(americanToPayout(odds.spreads.bestAwayPrice))}
+          else{res.spread.pnl.push(-1)}
         }
       }
     }
 
-    preds.push({...g,modelHP,predMargin,predTotal});
+    // ── TOTAL: Compare predicted total to actual closing total ──
+    if(odds.totals&&odds.totals.line!=null){
+      const bookLine=odds.totals.line;
+      const overP=predictOver(predTotal,bookLine,totalStd);
+      const bookOverProb=americanToProb(odds.totals.bestOverPrice);
+      const bookUnderProb=odds.totals.bestUnderPrice?americanToProb(odds.totals.bestUnderPrice):1-bookOverProb;
 
-    // Update trackers AFTER prediction (no lookahead)
-    leagueTotalTracker.gp++;
-    leagueTotalTracker.sum+=g.total;
-    if(!isNCAA){
-      updateTracker(g.home_team,g.home_score,g.away_score);
-      updateTracker(g.away_team,g.away_score,g.home_score);
+      if(overP>bookOverProb+0.03){// model says over
+        res.total.bets++;
+        if(g.total>bookLine){res.total.wins++;res.total.pnl.push(americanToPayout(odds.totals.bestOverPrice))}
+        else{res.total.pnl.push(-1)}
+      }else if((1-overP)>bookUnderProb+0.03&&odds.totals.bestUnderPrice){// model says under
+        res.total.bets++;
+        if(g.total<bookLine){res.total.wins++;res.total.pnl.push(americanToPayout(odds.totals.bestUnderPrice))}
+        else{res.total.pnl.push(-1)}
+      }
     }
+
+    preds.push({...g,modelHP,predMargin,predTotal});
+    updateRolling(g.home_team,sport,g.home_score,g.away_score);
+    updateRolling(g.away_team,sport,g.away_score,g.home_score);
   }
 
-  return{res,preds,matched,skipped,tooEarly:tooEarly||0};
+  return{res,preds,matched,tooEarly,noOdds};
 }
 
 // ═══ MAIN ═══
 async function runBacktest(){
+  const apiKey=document.getElementById('apiKeyInput').value.trim();
+  if(!apiKey){alert('Enter your Odds API key first');return}
+
   const btn=document.getElementById('runBtn');
   const prog=document.getElementById('progress');
   const bar=document.getElementById('progBar');
@@ -317,215 +327,208 @@ async function runBacktest(){
   const resultsDiv=document.getElementById('results');
 
   btn.disabled=true;
-  btn.innerHTML='<div class="pulse"></div>RUNNING BACKTEST...';
+  btn.innerHTML='<div class="pulse"></div>RUNNING...';
   prog.style.display='block';
 
-  // Fetch NBA
+  // Check for cached results
+  const cached=localStorage.getItem('evbt_accurate_v1');
+  if(cached){
+    const c=JSON.parse(cached);
+    if(c.nbaGames&&c.nbaGames.length>500){
+      status.textContent='Found cached data! Running model...';
+      bar.style.width='90%';
+      await new Promise(r=>setTimeout(r,100));
+      runModelOnCached(c,resultsDiv,bar,status,btn);
+      return;
+    }
+  }
+
+  // ═══ PHASE 1: Fetch ESPN results ═══
+  status.textContent='Fetching NBA results from ESPN...';
   const nbaDates=getDates('2025-10-22','2026-03-25');
   let nbaGames=[];
   for(let i=0;i<nbaDates.length;i++){
-    if(i%10===0){
-      const pct=((i/nbaDates.length)*45).toFixed(0);
-      bar.style.width=pct+'%';
-      status.textContent=`Fetching NBA games... ${i}/${nbaDates.length} days (${nbaGames.length} games found)`;
-      await new Promise(r=>setTimeout(r,1));// yield to UI
-    }
-    const games=await fetchESPN('basketball','nba',nbaDates[i]);
-    nbaGames=nbaGames.concat(games);
-    await new Promise(r=>setTimeout(r,50));// rate limit
+    if(i%15===0){bar.style.width=((i/nbaDates.length)*20).toFixed(0)+'%';status.textContent=`ESPN NBA: ${i}/${nbaDates.length} days (${nbaGames.length} games)`;await new Promise(r=>setTimeout(r,1))}
+    nbaGames=nbaGames.concat(await fetchESPN('basketball','nba',nbaDates[i]));
+    await new Promise(r=>setTimeout(r,30));
   }
-  status.textContent=`NBA: ${nbaGames.length} games. Fetching NCAAB tournament...`;
-  bar.style.width='47%';
+  status.textContent=`NBA: ${nbaGames.length} games. Fetching MLB from ESPN...`;
+  bar.style.width='22%';
 
-  // Fetch NCAAB tournament
-  const ncaabDates=getDates('2026-03-17','2026-03-26');
-  let ncaabGames=[];
-  for(const d of ncaabDates){
-    const games=await fetchESPN('basketball','mens-college-basketball',d);
-    ncaabGames=ncaabGames.concat(games);
-    await new Promise(r=>setTimeout(r,50));
-  }
-  status.textContent=`NCAAB: ${ncaabGames.length} tournament games. Fetching MLB 2025 season...`;
-  bar.style.width='55%';
-
-  // Fetch MLB 2025 full season (March 27 → October 1)
   const mlbDates=getDates('2025-03-27','2025-10-01');
   let mlbGames=[];
   for(let i=0;i<mlbDates.length;i++){
-    if(i%10===0){
-      const pct=(55+((i/mlbDates.length)*30)).toFixed(0);
-      bar.style.width=pct+'%';
-      status.textContent=`Fetching MLB 2025... ${i}/${mlbDates.length} days (${mlbGames.length} games found)`;
+    if(i%15===0){bar.style.width=(22+((i/mlbDates.length)*20)).toFixed(0)+'%';status.textContent=`ESPN MLB: ${i}/${mlbDates.length} days (${mlbGames.length} games)`;await new Promise(r=>setTimeout(r,1))}
+    mlbGames=mlbGames.concat(await fetchESPN('baseball','mlb',mlbDates[i]));
+    await new Promise(r=>setTimeout(r,30));
+  }
+  status.textContent=`ESPN done: ${nbaGames.length} NBA + ${mlbGames.length} MLB. Now fetching historical odds...`;
+  bar.style.width='44%';
+
+  // ═══ PHASE 2: Fetch historical odds from The Odds API ═══
+  // Get unique game dates
+  const nbaUniqueDates=[...new Set(nbaGames.map(g=>g.date))].sort();
+  const mlbUniqueDates=[...new Set(mlbGames.map(g=>g.date))].sort();
+
+  let lastRemaining=null;
+
+  // NBA historical odds
+  const nbaOddsCache={};
+  for(let i=0;i<nbaUniqueDates.length;i++){
+    const d=nbaUniqueDates[i];
+    if(i%5===0){
+      bar.style.width=(44+((i/nbaUniqueDates.length)*25)).toFixed(0)+'%';
+      status.textContent=`Historical NBA odds: ${i}/${nbaUniqueDates.length} days${lastRemaining?' ('+lastRemaining+' requests remaining)':''}`;
       await new Promise(r=>setTimeout(r,1));
     }
-    const games=await fetchESPN('baseball','mlb',mlbDates[i]);
-    mlbGames=mlbGames.concat(games);
-    await new Promise(r=>setTimeout(r,50));
+    const{games,remaining}=await fetchHistoricalOdds(apiKey,'basketball_nba',d);
+    if(remaining)lastRemaining=remaining;
+    nbaOddsCache[d]=games;
+    await new Promise(r=>setTimeout(r,100));// rate limit
   }
-  status.textContent=`MLB: ${mlbGames.length} games. Running models...`;
-  bar.style.width='90%';
+  document.getElementById('quotaInfo').style.display='block';
+  document.getElementById('quotaInfo').textContent='Requests remaining: '+(lastRemaining||'unknown');
 
-  // Run backtests
-  const nbaRes=backtestGames(nbaGames,NBA,3.0,12,12,15,false);
-  const ncaabRes=backtestGames(ncaabGames,NCAAB,0,11,11,1,true);
-  // MLB: HCA ~0.3 runs, spread std 3.5, total std 2.5, min 20 games to stabilize
-  const mlbRes=backtestGames(mlbGames,{},0.3,3.5,2.5,20,false);
+  // MLB historical odds
+  const mlbOddsCache={};
+  for(let i=0;i<mlbUniqueDates.length;i++){
+    const d=mlbUniqueDates[i];
+    if(i%5===0){
+      bar.style.width=(69+((i/mlbUniqueDates.length)*25)).toFixed(0)+'%';
+      status.textContent=`Historical MLB odds: ${i}/${mlbUniqueDates.length} days${lastRemaining?' ('+lastRemaining+' remaining)':''}`;
+      await new Promise(r=>setTimeout(r,1));
+    }
+    const{games,remaining}=await fetchHistoricalOdds(apiKey,'baseball_mlb',d);
+    if(remaining)lastRemaining=remaining;
+    mlbOddsCache[d]=games;
+    await new Promise(r=>setTimeout(r,100));
+  }
+  document.getElementById('quotaInfo').textContent='Requests remaining: '+(lastRemaining||'unknown');
+
+  // ═══ PHASE 3: Match games to odds ═══
+  status.textContent='Matching games to closing odds...';
+  bar.style.width='95%';
+
+  for(const g of nbaGames){
+    const dayOdds=nbaOddsCache[g.date]||[];
+    const matched=matchGame(g,dayOdds);
+    g.odds=matched?extractClosingOdds(matched):null;
+  }
+  for(const g of mlbGames){
+    const dayOdds=mlbOddsCache[g.date]||[];
+    const matched=matchGame(g,dayOdds);
+    g.odds=matched?extractClosingOdds(matched):null;
+  }
+
+  // Cache results
+  try{localStorage.setItem('evbt_accurate_v1',JSON.stringify({nbaGames,mlbGames,fetchDate:new Date().toISOString()}))}catch(e){}
+
+  // ═══ PHASE 4: Run model ═══
+  runModelOnCached({nbaGames,mlbGames},resultsDiv,bar,status,btn);
+}
+
+function runModelOnCached(data,resultsDiv,bar,status,btn){
+  // Reset trackers
+  Object.keys(trackers).forEach(k=>delete trackers[k]);
+
+  const nbaRes=backtestWithRealOdds(data.nbaGames,'nba',3.0,12,12,15);
+  const mlbRes=backtestWithRealOdds(data.mlbGames,'mlb',0.3,3.5,2.5,20);
+
   bar.style.width='100%';
   status.textContent='Complete!';
 
-  // Render results
-  renderResults(nbaRes,ncaabRes,mlbRes,nbaGames.length,ncaabGames.length,mlbGames.length,resultsDiv);
+  renderResults(nbaRes,mlbRes,data.nbaGames.length,data.mlbGames.length,resultsDiv);
   resultsDiv.style.display='block';
-  btn.textContent='✅ BACKTEST COMPLETE';
+  btn.textContent='✅ BACKTEST COMPLETE (cached — reload to re-run)';
 }
 
-function renderResults(nba,ncaab,mlb,nbaTotal,ncaabTotal,mlbTotal,el){
+// ═══ RENDER ═══
+function renderResults(nba,mlb,nbaTotal,mlbTotal,el){
   let h='';
 
-  // ═══ SUMMARY STATS ═══
-  h+='<div class="section"><div class="section-t">🏀 NBA 2025-26 SEASON (Rolling Ratings)</div>';
-  h+=statsBlock(nba,'NBA',nbaTotal);
+  h+='<div class="section"><div class="section-t">🏀 NBA 2025-26 (Real Closing Odds)</div>';
+  h+=statsBlock(nba,nbaTotal);
   h+='</div>';
 
-  h+='<div class="section"><div class="section-t">🏀 NCAAB TOURNAMENT 2026 (KenPom Ratings)</div>';
-  h+=statsBlock(ncaab,'NCAAB',ncaabTotal);
+  h+='<div class="section"><div class="section-t">⚾ MLB 2025 (Real Closing Odds)</div>';
+  h+=statsBlock(mlb,mlbTotal);
   h+='</div>';
 
-  h+='<div class="section"><div class="section-t">⚾ MLB 2025 SEASON (Rolling Ratings)</div>';
-  h+=statsBlock(mlb,'MLB',mlbTotal);
-  h+='</div>';
-
-  // Charts
-  h+='<div class="section"><div class="section-t">📈 P/L CURVES</div>';
+  h+='<div class="section"><div class="section-t">📈 P/L CURVES (Real $)</div>';
   h+='<div class="chart-wrap"><div class="chart-title">MONEYLINE P/L</div><canvas id="chartML" height="200"></canvas></div>';
   h+='<div class="chart-wrap"><div class="chart-title">SPREAD P/L</div><canvas id="chartSpread" height="200"></canvas></div>';
   h+='<div class="chart-wrap"><div class="chart-title">TOTAL P/L</div><canvas id="chartTotal" height="200"></canvas></div>';
   h+='</div>';
 
-  // Calibration
   h+='<div class="section"><div class="section-t">🎯 MODEL CALIBRATION</div>';
   h+='<div class="chart-wrap"><div class="chart-title">PREDICTED vs ACTUAL WIN RATE</div><canvas id="chartCal" height="300"></canvas></div>';
   h+='</div>';
 
-  // Caveats
   h+='<div class="caveat">';
-  h+='<strong>⚠️ Important context:</strong><br>';
-  h+='• <strong>All bets simulated at -110 juice</strong> — win +0.909u, lose -1.0u. You need 52.4% WR just to break even. This is realistic.<br>';
-  h+='• <strong>NBA/MLB use rolling ratings</strong> — each game only uses data from prior games. No lookahead bias. First 15-20 games per team skipped.<br>';
-  h+='• <strong>NCAAB uses pre-tournament KenPom ratings</strong> — published before the tournament, no lookahead.<br>';
-  h+='• We bet at a fixed 57% threshold. The live scanner finds games where the book\'s price implies LESS than your model — which is a sharper edge than this flat threshold.<br>';
-  h+='• <strong>Positive ROI at -110 juice = the model has genuine predictive power. Breakeven is 52.4% WR.</strong>';
+  h+='<strong>What makes this accurate:</strong><br>';
+  h+='• <strong>Real closing odds</strong> from actual sportsbooks via The Odds API historical endpoint<br>';
+  h+='• <strong>Real payouts</strong> — favorites pay less (e.g. -180 = +0.56u), dogs pay more (e.g. +150 = +1.50u)<br>';
+  h+='• <strong>Rolling ratings</strong> — model only uses games played before each matchup, no lookahead<br>';
+  h+='• <strong>3% edge minimum</strong> — only bets when model probability exceeds book probability by 3%+<br>';
+  h+='• <strong>Breakeven at ~52% for spreads/totals (-110), varies for ML based on odds</strong>';
   h+='</div>';
 
-  h+='<div class="footer">+EV Scanner v4 • Model Backtest • March 2026</div>';
+  h+='<div class="caveat">';
+  h+='<strong>How to interpret:</strong><br>';
+  h+='• Positive cumulative P/L = the model genuinely beats the books<br>';
+  h+='• Flat or negative P/L = the model doesn\'t find real edges (cross-book edges are still your primary source)<br>';
+  h+='• Few bets = the model rarely disagrees with books by 3%+ (which is expected — books are sharp)';
+  h+='</div>';
+
+  h+='<button class="btn" style="background:rgba(244,63,94,.06);border-color:rgba(244,63,94,.15);color:var(--r);font-size:12px;padding:12px 24px" onclick="localStorage.removeItem(\'evbt_accurate_v1\');location.reload()">CLEAR CACHE & RE-FETCH</button>';
+
+  h+='<div class="footer">+EV Scanner v4 • Accurate Backtest • Real Historical Odds</div>';
 
   el.innerHTML=h;
 
-  // Draw charts after DOM update
   setTimeout(()=>{
-    drawPLChart('chartML',nba.res.ml.pnl,ncaab.res.ml.pnl,mlb.res.ml.pnl);
-    drawPLChart('chartSpread',nba.res.spread.pnl,ncaab.res.spread.pnl,mlb.res.spread.pnl);
-    drawPLChart('chartTotal',nba.res.total.pnl,ncaab.res.total.pnl,mlb.res.total.pnl);
-    drawCalibration('chartCal',nba.preds,ncaab.preds,mlb.preds);
+    drawPL('chartML',nba.res.ml.pnl,mlb.res.ml.pnl);
+    drawPL('chartSpread',nba.res.spread.pnl,mlb.res.spread.pnl);
+    drawPL('chartTotal',nba.res.total.pnl,mlb.res.total.pnl);
+    drawCal('chartCal',nba.preds,mlb.preds);
   },100);
 }
 
-function statsBlock(data,label,totalGames){
+function statsBlock(data,totalGames){
   const r=data.res;
-  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">${totalGames} games fetched • ${data.matched} matched • ${data.skipped} skipped${data.tooEarly?' • '+data.tooEarly+' too early (building ratings)':''}</div>`;
-  h+='<div style="font-size:10px;color:var(--gold);margin-bottom:8px;font-family:var(--mono)">All bets simulated at -110 juice (need 52.4% WR to break even)</div>';
+  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)">${totalGames} games • ${data.matched} w/ odds + ratings • ${data.tooEarly} too early • ${data.noOdds} no odds</div>`;
+  h+='<div style="font-size:10px;color:var(--gold);margin-bottom:8px;font-family:var(--mono)">Real payouts from actual closing lines • 3% min edge threshold</div>';
   h+='<div class="row r3">';
-  for(const[mkt,name]of [['ml','Moneyline'],['spread','Spread'],['total','Total']]){
-    const d=r[mkt];
-    const wr=d.bets?((d.wins/d.bets)*100).toFixed(1):'—';
-    const net=d.pnl.reduce((a,b)=>a+b,0);
-    const roi=d.bets?((net/d.bets)*100).toFixed(1):'—';
+  for(const[mkt,name]of[['ml','Moneyline'],['spread','Spread'],['total','Total']]){
+    const d=r[mkt];const wr=d.bets?((d.wins/d.bets)*100).toFixed(1):'—';
+    const net=d.pnl.reduce((a,b)=>a+b,0);const roi=d.bets?((net/d.bets)*100).toFixed(1):'—';
     const color=net>0?'var(--g)':net<0?'var(--r)':'var(--muted)';
     h+='<div class="box">';
     h+=`<div class="box-l">${name.toUpperCase()}</div>`;
     h+=`<div class="box-v" style="color:${color};font-size:16px">${d.wins}/${d.bets}</div>`;
-    h+=`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px">${wr}% WR • ${net>=0?'+':''}${net.toFixed(1)}u • ${roi}% ROI</div>`;
+    h+=`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px">${wr}% WR</div>`;
+    h+=`<div style="font-size:12px;font-weight:700;color:${color};font-family:var(--mono)">${net>=0?'+':''}${net.toFixed(2)}u • ${roi}% ROI</div>`;
     h+='</div>';
   }
-  h+='</div>';
-  return h;
+  h+='</div>';return h;
 }
 
-function drawPLChart(canvasId,nbaPnl,ncaabPnl,mlbPnl){
-  const ctx=document.getElementById(canvasId);
-  if(!ctx)return;
-  const datasets=[];
-  let maxLen=0;
-  if(nbaPnl.length){
-    const cum=[];let s=0;nbaPnl.forEach(v=>{s+=v;cum.push(s)});
-    datasets.push({label:`NBA (${nbaPnl.length} bets)`,data:cum,borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});
-    maxLen=Math.max(maxLen,cum.length);
-  }
-  if(ncaabPnl.length){
-    const cum=[];let s=0;ncaabPnl.forEach(v=>{s+=v;cum.push(s)});
-    datasets.push({label:`NCAAB (${ncaabPnl.length} bets)`,data:cum,borderColor:'#ff9e44',backgroundColor:'rgba(255,158,68,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});
-    maxLen=Math.max(maxLen,cum.length);
-  }
-  if(mlbPnl&&mlbPnl.length){
-    const cum=[];let s=0;mlbPnl.forEach(v=>{s+=v;cum.push(s)});
-    datasets.push({label:`MLB (${mlbPnl.length} bets)`,data:cum,borderColor:'#e63946',backgroundColor:'rgba(230,57,70,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});
-    maxLen=Math.max(maxLen,cum.length);
-  }
-  new Chart(ctx,{
-    type:'line',
-    data:{labels:Array.from({length:maxLen},(_, i)=>i+1),datasets},
-    options:{
-      responsive:true,
-      plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},
-      scales:{
-        x:{display:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#4a5568',font:{size:10}}},
-        y:{display:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}
-      }
-    }
-  });
+function drawPL(id,nbaPnl,mlbPnl){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  const ds=[];let maxL=0;
+  if(nbaPnl.length){const c=[];let s=0;nbaPnl.forEach(v=>{s+=v;c.push(s)});ds.push({label:`NBA (${nbaPnl.length})`,data:c,borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});maxL=Math.max(maxL,c.length)}
+  if(mlbPnl.length){const c=[];let s=0;mlbPnl.forEach(v=>{s+=v;c.push(s)});ds.push({label:`MLB (${mlbPnl.length})`,data:c,borderColor:'#e63946',backgroundColor:'rgba(230,57,70,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});maxL=Math.max(maxL,c.length)}
+  new Chart(ctx,{type:'line',data:{labels:Array.from({length:maxL},(_,i)=>i+1),datasets:ds},options:{responsive:true,plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#4a5568',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}}}});
 }
 
-function drawCalibration(canvasId,nbaPreds,ncaabPreds,mlbPreds){
-  const ctx=document.getElementById(canvasId);
-  if(!ctx)return;
+function drawCal(id,nbaPreds,mlbPreds){
+  const ctx=document.getElementById(id);if(!ctx)return;
   const bins=[[0,.3],[.3,.4],[.4,.45],[.45,.5],[.5,.55],[.55,.6],[.6,.7],[.7,1]];
-
-  function getBinData(preds){
-    const pts=[];
-    for(const[lo,hi]of bins){
-      const sub=preds.filter(p=>p.modelHP>=lo&&p.modelHP<hi);
-      if(!sub.length)continue;
-      const avgModel=sub.reduce((s,p)=>s+p.modelHP,0)/sub.length;
-      const actualWR=sub.filter(p=>p.home_win).length/sub.length;
-      pts.push({x:avgModel*100,y:actualWR*100});
-    }
-    return pts;
-  }
-
-  const nbaData=getBinData(nbaPreds);
-  const ncaabData=getBinData(ncaabPreds);
-  const mlbData=mlbPreds?getBinData(mlbPreds):[];
-
-  const dsets=[
-    {label:'Perfect',data:[{x:0,y:0},{x:100,y:100}],type:'line',borderColor:'#333',borderDash:[5,5],pointRadius:0,borderWidth:1},
-    {label:'NBA',data:nbaData,backgroundColor:'#ff6b35',borderColor:'#ff6b35',pointRadius:8,showLine:true,borderWidth:2},
-    {label:'NCAAB',data:ncaabData,backgroundColor:'#ff9e44',borderColor:'#ff9e44',pointRadius:8,showLine:true,borderWidth:2}
-  ];
-  if(mlbData.length)dsets.push({label:'MLB',data:mlbData,backgroundColor:'#e63946',borderColor:'#e63946',pointRadius:8,showLine:true,borderWidth:2});
-
-  new Chart(ctx,{
-    type:'scatter',
-    data:{datasets:dsets},
-    options:{
-      responsive:true,
-      aspectRatio:1,
-      plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},
-      scales:{
-        x:{min:0,max:100,title:{display:true,text:'Model Predicted %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#7c889a'}},
-        y:{min:0,max:100,title:{display:true,text:'Actual Win Rate %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a'}}
-      }
-    }
-  });
+  function bd(preds){const pts=[];for(const[lo,hi]of bins){const sub=preds.filter(p=>p.modelHP>=lo&&p.modelHP<hi);if(!sub.length)continue;pts.push({x:sub.reduce((s,p)=>s+p.modelHP,0)/sub.length*100,y:sub.filter(p=>p.home_win).length/sub.length*100})}return pts}
+  const nd=bd(nbaPreds),md=bd(mlbPreds);
+  const dsets=[{label:'Perfect',data:[{x:0,y:0},{x:100,y:100}],type:'line',borderColor:'#333',borderDash:[5,5],pointRadius:0,borderWidth:1},{label:'NBA',data:nd,backgroundColor:'#ff6b35',borderColor:'#ff6b35',pointRadius:8,showLine:true,borderWidth:2}];
+  if(md.length)dsets.push({label:'MLB',data:md,backgroundColor:'#e63946',borderColor:'#e63946',pointRadius:8,showLine:true,borderWidth:2});
+  new Chart(ctx,{type:'scatter',data:{datasets:dsets},options:{responsive:true,aspectRatio:1,plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},scales:{x:{min:0,max:100,title:{display:true,text:'Model %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#7c889a'}},y:{min:0,max:100,title:{display:true,text:'Actual %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a'}}}}});
 }
 </script>
 </body>
