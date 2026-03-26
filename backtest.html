@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080c14">
+<title>+EV Scanner v4 — Model Backtest</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080c14;--card:rgba(255,255,255,0.028);--border:rgba(255,255,255,0.06);
+--g:#00ffaa;--cyan:#22d3ee;--gold:#fbbf24;--r:#f43f5e;--nba:#ff6b35;--ncaab:#ff9e44;
+--text:#e4e8f0;--muted:#7c889a;--dim:#4a5568;
+--mono:'IBM Plex Mono',monospace;--body:'Outfit',sans-serif}
+html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;min-height:100vh;-webkit-font-smoothing:antialiased}
+.app{max-width:900px;margin:0 auto;padding:20px 16px}
+.hdr{text-align:center;padding-bottom:16px;margin-bottom:20px;border-bottom:1px solid rgba(0,255,170,.06)}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.logo-ev{background:linear-gradient(135deg,#00ffaa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{font-size:10px;letter-spacing:3px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+.btn{padding:16px 32px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;letter-spacing:2px;
+background:linear-gradient(135deg,rgba(0,255,170,.1),rgba(34,211,238,.05));
+border:1px solid rgba(0,255,170,.2);color:var(--g);font-family:var(--mono);display:block;margin:20px auto;position:relative;overflow:hidden}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn .pulse{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(0,255,170,.08),transparent);animation:scan 1.5s infinite}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.prog{height:3px;background:var(--border);border-radius:2px;margin:12px 0;overflow:hidden}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--g),var(--cyan));border-radius:2px;transition:width .3s}
+.status{text-align:center;font-size:12px;color:var(--muted);font-family:var(--mono);margin:8px 0}
+.section{margin:24px 0}
+.section-t{font-size:16px;font-weight:700;color:var(--cyan);font-family:var(--mono);letter-spacing:1px;margin-bottom:12px}
+.row{display:grid;gap:8px;margin-bottom:14px}
+.r3{grid-template-columns:1fr 1fr 1fr}
+.r4{grid-template-columns:repeat(4,1fr)}
+.box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;backdrop-filter:blur(8px)}
+.box-l{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:var(--mono);font-weight:600;margin-bottom:3px}
+.box-v{font-size:20px;font-weight:800;font-family:var(--mono)}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.chart-title{font-size:13px;font-weight:700;color:var(--gold);font-family:var(--mono);letter-spacing:1px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;margin-top:8px}
+th{text-align:left;padding:8px 10px;color:var(--g);font-size:10px;letter-spacing:1.5px;border-bottom:1px solid var(--border);font-weight:700}
+td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--text)}
+tr:hover td{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.tag-win{background:rgba(0,255,170,.08);color:var(--g);border:1px solid rgba(0,255,170,.15)}
+.tag-loss{background:rgba(244,63,94,.08);color:var(--r);border:1px solid rgba(244,63,94,.15)}
+.caveat{background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.1);border-radius:10px;padding:14px 16px;margin:16px 0;font-size:13px;color:var(--muted);line-height:1.6}
+.caveat strong{color:var(--gold)}
+.footer{text-align:center;font-size:11px;color:#334;padding:24px 0;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="hdr">
+    <div class="sub">MODEL BACKTEST</div>
+    <div class="logo"><span class="logo-ev">+EV Scanner</span> <span style="color:var(--muted);font-size:14px">v4</span></div>
+    <div class="sub" style="margin-top:8px">NBA 2025-26 Season + NCAAB March Madness 2026</div>
+  </div>
+
+  <div class="caveat">
+    <strong>What this does:</strong> Fetches every NBA game this season + NCAAB tournament results from ESPN, runs the exact same logistic model from your scanner, and shows you whether it would have been profitable.
+  </div>
+
+  <button class="btn" id="runBtn" onclick="runBacktest()">
+    🧪 RUN BACKTEST
+  </button>
+
+  <div id="progress" style="display:none">
+    <div class="prog"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+    <div class="status" id="statusText">Starting...</div>
+  </div>
+
+  <div id="results" style="display:none"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// EXACT SAME MODEL AS THE SCANNER
+// ═══════════════════════════════════════════════════════════════
+function normalCdf(z){const t=1/(1+.2316419*Math.abs(z)),d=.3989422804*Math.exp(-z*z/2);const p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>=0?1-p:p}
+function logisticWinProb(rA,rB,scale=11){return 1/(1+Math.pow(10,-(rA-rB)/scale))}
+function predictSpreadCover(margin,line,std=12){return normalCdf((margin+line)/std)}
+function predictOver(predicted,line,std=12){return normalCdf((predicted-line)/std)}
+function kellyFrac(fp,bp,fr=0.25){const o=1/bp-1;if(o<=0)return 0;return Math.max(0,((fp*o-(1-fp))/o)*fr)}
+
+// ═══ RATINGS (same as scanner) ═══
+const NBA={
+'Oklahoma City Thunder':{off:118.5,def:107.5,net:11.0},'San Antonio Spurs':{off:119.0,def:111.2,net:7.8},
+'Detroit Pistons':{off:117.5,def:109.9,net:7.7},'Boston Celtics':{off:120.2,def:112.6,net:7.6},
+'New York Knicks':{off:119.8,def:112.9,net:6.9},'Los Angeles Lakers':{off:118.3,def:112.8,net:5.5},
+'Cleveland Cavaliers':{off:118.0,def:113.0,net:5.0},'Denver Nuggets':{off:117.9,def:113.1,net:4.8},
+'Minnesota Timberwolves':{off:117.8,def:113.3,net:4.5},'Houston Rockets':{off:117.6,def:113.4,net:4.2},
+'Atlanta Hawks':{off:117.0,def:114.0,net:3.0},'Toronto Raptors':{off:116.9,def:114.1,net:2.8},
+'Philadelphia 76ers':{off:116.6,def:114.4,net:2.2},'Phoenix Suns':{off:116.5,def:114.5,net:2.0},
+'Miami Heat':{off:116.3,def:114.8,net:1.5},'Charlotte Hornets':{off:116.1,def:114.9,net:1.2},
+'Orlando Magic':{off:116.0,def:115.0,net:1.0},'LA Clippers':{off:115.5,def:115.5,net:0.0},
+'Portland Trail Blazers':{off:115.4,def:115.7,net:-0.3},'Golden State Warriors':{off:115.0,def:116.0,net:-1.0},
+'Milwaukee Bucks':{off:113.9,def:117.1,net:-3.2},'Chicago Bulls':{off:113.8,def:117.3,net:-3.5},
+'New Orleans Pelicans':{off:112.8,def:118.3,net:-5.5},'Memphis Grizzlies':{off:112.5,def:118.5,net:-6.0},
+'Dallas Mavericks':{off:112.3,def:118.8,net:-6.5},'Utah Jazz':{off:111.8,def:119.3,net:-7.5},
+'Sacramento Kings':{off:111.3,def:119.8,net:-8.5},'Brooklyn Nets':{off:110.8,def:120.3,net:-9.5},
+'Washington Wizards':{off:110.5,def:120.5,net:-10.0},'Indiana Pacers':{off:110.3,def:120.8,net:-10.5}
+};
+const NCAAB={
+'Arizona':{off:126.4,def:90.5,net:35.9},'Michigan':{off:125.8,def:91.2,net:34.6},
+'Florida':{off:125.5,def:91.7,net:33.8},'Duke':{off:124.2,def:91.8,net:32.4},
+'Houston':{off:123.4,def:92.2,net:31.2},'Auburn':{off:121.5,def:93.5,net:28.0},
+'Iowa State':{off:121.3,def:93.8,net:27.5},'Kansas':{off:120.5,def:94.5,net:26.0},
+'Illinois':{off:119.8,def:94.3,net:25.5},'Tennessee':{off:119.5,def:94.5,net:25.0},
+'Purdue':{off:119.3,def:94.8,net:24.5},'Alabama':{off:119.0,def:95.0,net:24.0},
+'Gonzaga':{off:118.8,def:95.3,net:23.5},'Marquette':{off:118.0,def:96.0,net:22.0},
+'Kentucky':{off:117.8,def:96.3,net:21.5},'Connecticut':{off:117.5,def:96.5,net:21.0},
+'Texas Tech':{off:117.0,def:97.0,net:20.0},'Creighton':{off:116.8,def:97.3,net:19.5},
+'Michigan State':{off:116.5,def:97.5,net:19.0},'Oregon':{off:116.3,def:97.8,net:18.5},
+'Baylor':{off:116.0,def:98.0,net:18.0},'Memphis':{off:115.8,def:98.3,net:17.5},
+'Wisconsin':{off:115.5,def:98.5,net:17.0},'St Johns':{off:115.3,def:98.8,net:16.5},
+'Maryland':{off:115.0,def:99.0,net:16.0},'Missouri':{off:114.8,def:99.3,net:15.5},
+'UCLA':{off:114.0,def:100.0,net:14.0},'Colorado State':{off:113.0,def:101.0,net:12.0},
+'Drake':{off:112.5,def:101.5,net:11.0},'Clemson':{off:112.3,def:102.2,net:10.1},
+'New Mexico':{off:112.3,def:101.8,net:10.5},'VCU':{off:112.0,def:102.0,net:10.0},
+'Nevada':{off:111.8,def:102.3,net:9.5},'UC San Diego':{off:111.0,def:103.0,net:8.0},
+'Lipscomb':{off:110.5,def:103.5,net:7.0},'Grand Canyon':{off:110.0,def:104.0,net:6.0},
+'McNeese':{off:102.1,def:117.4,net:-15.3},'Howard':{off:95.3,def:137.4,net:-42.1},
+'Norfolk State':{off:100.0,def:120.0,net:-20.0},'Montana State':{off:101.0,def:119.0,net:-18.0},
+'Omaha':{off:97.5,def:122.5,net:-25.0},'SIU Edwardsville':{off:95.0,def:125.0,net:-30.0}
+};
+
+function findRating(name,db){
+  const n=name.toLowerCase().trim();
+  for(const[k,v]of Object.entries(db)){if(k.toLowerCase()===n)return v}
+  for(const[k,v]of Object.entries(db)){
+    const kl=k.toLowerCase();
+    if(n.includes(kl)||kl.includes(n))return v;
+    const last=kl.split(' ').pop();
+    if(last.length>3&&n.includes(last))return v;
+  }
+  return null;
+}
+
+// ═══ ESPN FETCHER ═══
+async function fetchESPN(sport,league,dateStr){
+  const url=`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard?dates=${dateStr}`;
+  try{
+    const res=await fetch(url);if(!res.ok)return[];
+    const data=await res.json();
+    const games=[];
+    for(const ev of (data.events||[])){
+      const comp=ev.competitions[0];
+      if(!comp.status.type.completed)continue;
+      const teams=comp.competitors;
+      const home=teams.find(t=>t.homeAway==='home');
+      const away=teams.find(t=>t.homeAway==='away');
+      if(!home||!away)continue;
+      games.push({
+        date:dateStr,
+        home_team:home.team.displayName,away_team:away.team.displayName,
+        home_score:+home.score,away_score:+away.score,
+        home_win:+home.score>+away.score,
+        total:+home.score+ +away.score,
+        margin:+home.score- +away.score
+      });
+    }
+    return games;
+  }catch(e){return[]}
+}
+
+function getDates(startStr,endStr){
+  const dates=[];
+  let d=new Date(startStr+'T12:00:00Z');
+  const end=new Date(endStr+'T12:00:00Z');
+  while(d<=end){
+    dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+    d.setDate(d.getDate()+1);
+  }
+  return dates;
+}
+
+// ═══ BACKTEST ENGINE ═══
+function backtestGames(games,ratingsDb,hca,spreadStd,totalStd){
+  const res={ml:{bets:0,wins:0,pnl:[]},spread:{bets:0,wins:0,pnl:[]},total:{bets:0,wins:0,pnl:[]}};
+  const preds=[];
+  let matched=0,skipped=0;
+
+  for(const g of games){
+    const hr=findRating(g.home_team,ratingsDb);
+    const ar=findRating(g.away_team,ratingsDb);
+    if(!hr||!ar){skipped++;continue}
+    matched++;
+
+    const modelHP=logisticWinProb(hr.net+hca,ar.net);
+    const predMargin=(hr.net-ar.net)+hca;
+    const predTotal=hr.off&&ar.off?((hr.off+ar.def)/2)+((ar.off+hr.def)/2):null;
+
+    // ML: bet if model >57% either side (stronger threshold than 55%)
+    if(modelHP>0.57){
+      res.ml.bets++;
+      if(g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
+    }else if(modelHP<0.43){
+      res.ml.bets++;
+      if(!g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
+    }
+
+    // Spread: if model predicts margin > 5pts different from a flat -3 line
+    if(Math.abs(predMargin)>3){
+      const simSpread=predMargin>0?-3:3;
+      const coverP=predictSpreadCover(predMargin>0?predMargin:-predMargin,simSpread,spreadStd);
+      if(coverP>0.57){
+        res.spread.bets++;
+        const favMargin=predMargin>0?g.margin:-g.margin;
+        if(favMargin+simSpread>0){res.spread.wins++;res.spread.pnl.push(1)}else{res.spread.pnl.push(-1)}
+      }
+    }
+
+    // Total: if model predicts total >4pts away from 225 (NBA) or 145 (NCAAB)
+    if(predTotal){
+      const refLine=predTotal>200?225:145;// auto-detect sport by scale
+      if(Math.abs(predTotal-refLine)>4){
+        const overP=predictOver(predTotal,refLine,totalStd);
+        if(overP>0.57){
+          res.total.bets++;
+          if(g.total>refLine){res.total.wins++;res.total.pnl.push(1)}else{res.total.pnl.push(-1)}
+        }else if(overP<0.43){
+          res.total.bets++;
+          if(g.total<refLine){res.total.wins++;res.total.pnl.push(1)}else{res.total.pnl.push(-1)}
+        }
+      }
+    }
+
+    preds.push({...g,modelHP,predMargin,predTotal});
+  }
+
+  return{res,preds,matched,skipped};
+}
+
+// ═══ MAIN ═══
+async function runBacktest(){
+  const btn=document.getElementById('runBtn');
+  const prog=document.getElementById('progress');
+  const bar=document.getElementById('progBar');
+  const status=document.getElementById('statusText');
+  const resultsDiv=document.getElementById('results');
+
+  btn.disabled=true;
+  btn.innerHTML='<div class="pulse"></div>RUNNING BACKTEST...';
+  prog.style.display='block';
+
+  // Fetch NBA
+  const nbaDates=getDates('2025-10-22','2026-03-25');
+  let nbaGames=[];
+  for(let i=0;i<nbaDates.length;i++){
+    if(i%10===0){
+      const pct=((i/nbaDates.length)*70).toFixed(0);
+      bar.style.width=pct+'%';
+      status.textContent=`Fetching NBA games... ${i}/${nbaDates.length} days (${nbaGames.length} games found)`;
+      await new Promise(r=>setTimeout(r,1));// yield to UI
+    }
+    const games=await fetchESPN('basketball','nba',nbaDates[i]);
+    nbaGames=nbaGames.concat(games);
+    await new Promise(r=>setTimeout(r,50));// rate limit
+  }
+  status.textContent=`NBA: ${nbaGames.length} games. Fetching NCAAB tournament...`;
+  bar.style.width='75%';
+
+  // Fetch NCAAB tournament
+  const ncaabDates=getDates('2026-03-17','2026-03-26');
+  let ncaabGames=[];
+  for(const d of ncaabDates){
+    const games=await fetchESPN('basketball','mens-college-basketball',d);
+    ncaabGames=ncaabGames.concat(games);
+    await new Promise(r=>setTimeout(r,50));
+  }
+  status.textContent=`NCAAB: ${ncaabGames.length} tournament games. Running model...`;
+  bar.style.width='85%';
+
+  // Run backtests
+  const nbaRes=backtestGames(nbaGames,NBA,3.0,12,12);
+  const ncaabRes=backtestGames(ncaabGames,NCAAB,0,11,11);
+  bar.style.width='100%';
+  status.textContent='Complete!';
+
+  // Render results
+  renderResults(nbaRes,ncaabRes,nbaGames.length,ncaabGames.length,resultsDiv);
+  resultsDiv.style.display='block';
+  btn.textContent='✅ BACKTEST COMPLETE';
+}
+
+function renderResults(nba,ncaab,nbaTotal,ncaabTotal,el){
+  let h='';
+
+  // ═══ SUMMARY STATS ═══
+  h+='<div class="section"><div class="section-t">📊 NBA 2025-26 SEASON</div>';
+  h+=statsBlock(nba,'NBA',nbaTotal);
+  h+='</div>';
+
+  h+='<div class="section"><div class="section-t">🏀 NCAAB TOURNAMENT 2026</div>';
+  h+=statsBlock(ncaab,'NCAAB',ncaabTotal);
+  h+='</div>';
+
+  // Charts
+  h+='<div class="section"><div class="section-t">📈 P/L CURVES</div>';
+  h+='<div class="chart-wrap"><div class="chart-title">MONEYLINE P/L</div><canvas id="chartML" height="200"></canvas></div>';
+  h+='<div class="chart-wrap"><div class="chart-title">SPREAD P/L</div><canvas id="chartSpread" height="200"></canvas></div>';
+  h+='<div class="chart-wrap"><div class="chart-title">TOTAL P/L</div><canvas id="chartTotal" height="200"></canvas></div>';
+  h+='</div>';
+
+  // Calibration
+  h+='<div class="section"><div class="section-t">🎯 MODEL CALIBRATION</div>';
+  h+='<div class="chart-wrap"><div class="chart-title">PREDICTED vs ACTUAL WIN RATE</div><canvas id="chartCal" height="300"></canvas></div>';
+  h+='</div>';
+
+  // Caveats
+  h+='<div class="caveat">';
+  h+='<strong>⚠️ Important caveats:</strong><br>';
+  h+='• Uses end-of-season ratings for all games = <strong>lookahead bias</strong>. Early-season games are rated with info that wasn\'t available yet.<br>';
+  h+='• Without actual closing odds, we simulate with fixed thresholds (57%+). Real edges depend on finding a book with worse-than-fair odds.<br>';
+  h+='• This tests the MODEL layer only. Cross-book edges (your primary edge source) can\'t be backtested without historical odds snapshots.<br>';
+  h+='• <strong>Forward-test with the TRACK tab in the live scanner for the real performance measurement.</strong>';
+  h+='</div>';
+
+  h+='<div class="footer">+EV Scanner v4 • Model Backtest • March 2026</div>';
+
+  el.innerHTML=h;
+
+  // Draw charts after DOM update
+  setTimeout(()=>{
+    drawPLChart('chartML',nba.res.ml.pnl,ncaab.res.ml.pnl);
+    drawPLChart('chartSpread',nba.res.spread.pnl,ncaab.res.spread.pnl);
+    drawPLChart('chartTotal',nba.res.total.pnl,ncaab.res.total.pnl);
+    drawCalibration('chartCal',nba.preds,ncaab.preds);
+  },100);
+}
+
+function statsBlock(data,label,totalGames){
+  const r=data.res;
+  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">${totalGames} games fetched • ${data.matched} matched to ratings • ${data.skipped} skipped</div>`;
+  h+='<div class="row r3">';
+  for(const[mkt,name]of [['ml','Moneyline'],['spread','Spread'],['total','Total']]){
+    const d=r[mkt];
+    const wr=d.bets?((d.wins/d.bets)*100).toFixed(1):'—';
+    const net=d.pnl.reduce((a,b)=>a+b,0);
+    const roi=d.bets?((net/d.bets)*100).toFixed(1):'—';
+    const color=net>0?'var(--g)':net<0?'var(--r)':'var(--muted)';
+    h+='<div class="box">';
+    h+=`<div class="box-l">${name.toUpperCase()}</div>`;
+    h+=`<div class="box-v" style="color:${color};font-size:16px">${d.wins}/${d.bets}</div>`;
+    h+=`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px">${wr}% WR • ${net>=0?'+':''}${net.toFixed(1)}u • ${roi}% ROI</div>`;
+    h+='</div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+function drawPLChart(canvasId,nbaPnl,ncaabPnl){
+  const ctx=document.getElementById(canvasId);
+  if(!ctx)return;
+  const datasets=[];
+  if(nbaPnl.length){
+    const cum=[];let s=0;nbaPnl.forEach(v=>{s+=v;cum.push(s)});
+    datasets.push({label:`NBA (${nbaPnl.length} bets)`,data:cum,borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});
+  }
+  if(ncaabPnl.length){
+    const cum=[];let s=0;ncaabPnl.forEach(v=>{s+=v;cum.push(s)});
+    const offset=nbaPnl.length;
+    datasets.push({label:`NCAAB (${ncaabPnl.length} bets)`,data:cum,borderColor:'#ff9e44',backgroundColor:'rgba(255,158,68,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2});
+  }
+  new Chart(ctx,{
+    type:'line',
+    data:{labels:Array.from({length:Math.max(nbaPnl.length,ncaabPnl.length)},(_, i)=>i+1),datasets},
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},
+      scales:{
+        x:{display:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#4a5568',font:{size:10}}},
+        y:{display:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}
+      }
+    }
+  });
+}
+
+function drawCalibration(canvasId,nbaPreds,ncaabPreds){
+  const ctx=document.getElementById(canvasId);
+  if(!ctx)return;
+  const bins=[[0,.3],[.3,.4],[.4,.45],[.45,.5],[.5,.55],[.55,.6],[.6,.7],[.7,1]];
+
+  function getBinData(preds){
+    const pts=[];
+    for(const[lo,hi]of bins){
+      const sub=preds.filter(p=>p.modelHP>=lo&&p.modelHP<hi);
+      if(!sub.length)continue;
+      const avgModel=sub.reduce((s,p)=>s+p.modelHP,0)/sub.length;
+      const actualWR=sub.filter(p=>p.home_win).length/sub.length;
+      pts.push({x:avgModel*100,y:actualWR*100});
+    }
+    return pts;
+  }
+
+  const nbaData=getBinData(nbaPreds);
+  const ncaabData=getBinData(ncaabPreds);
+
+  new Chart(ctx,{
+    type:'scatter',
+    data:{
+      datasets:[
+        {label:'Perfect',data:[{x:0,y:0},{x:100,y:100}],type:'line',borderColor:'#333',borderDash:[5,5],pointRadius:0,borderWidth:1},
+        {label:'NBA',data:nbaData,backgroundColor:'#ff6b35',borderColor:'#ff6b35',pointRadius:8,showLine:true,borderWidth:2},
+        {label:'NCAAB',data:ncaabData,backgroundColor:'#ff9e44',borderColor:'#ff9e44',pointRadius:8,showLine:true,borderWidth:2}
+      ]
+    },
+    options:{
+      responsive:true,
+      aspectRatio:1,
+      plugins:{legend:{labels:{color:'#7c889a',font:{family:'IBM Plex Mono',size:11}}}},
+      scales:{
+        x:{min:0,max:100,title:{display:true,text:'Model Predicted %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#7c889a'}},
+        y:{min:0,max:100,title:{display:true,text:'Actual Win Rate %',color:'#7c889a'},grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#7c889a'}}
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
