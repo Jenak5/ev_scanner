@@ -55,11 +55,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="hdr">
     <div class="sub">MODEL BACKTEST</div>
     <div class="logo"><span class="logo-ev">+EV Scanner</span> <span style="color:var(--muted);font-size:14px">v4</span></div>
-    <div class="sub" style="margin-top:8px">NBA 2025-26 Season + NCAAB March Madness 2026</div>
+    <div class="sub" style="margin-top:8px">NBA 2025-26 Season + NCAAB March Madness 2026 — Rolling Ratings (No Lookahead)</div>
   </div>
 
   <div class="caveat">
-    <strong>What this does:</strong> Fetches every NBA game this season + NCAAB tournament results from ESPN, runs the exact same logistic model from your scanner, and shows you whether it would have been profitable.
+    <strong>What this does:</strong> Fetches every NBA game this season + NCAAB tournament results from ESPN, runs the exact same logistic model from your scanner using <strong>rolling ratings</strong> (only data available before each game — no lookahead bias). NBA ratings build from scratch over the first 15 games per team, then the model starts betting.
   </div>
 
   <button class="btn" id="runBtn" onclick="runBacktest()">
@@ -176,23 +176,76 @@ function getDates(startStr,endStr){
   return dates;
 }
 
-// ═══ BACKTEST ENGINE ═══
-function backtestGames(games,ratingsDb,hca,spreadStd,totalStd){
+// ═══ BACKTEST ENGINE — ROLLING RATINGS (NO LOOKAHEAD BIAS) ═══
+// Instead of using end-of-season ratings, we calculate ratings from
+// ONLY games played BEFORE each matchup. This is honest backtesting.
+
+function backtestGames(games,staticRatings,hca,spreadStd,totalStd,minGames=15,isNCAA=false){
   const res={ml:{bets:0,wins:0,pnl:[]},spread:{bets:0,wins:0,pnl:[]},total:{bets:0,wins:0,pnl:[]}};
   const preds=[];
-  let matched=0,skipped=0;
+  let matched=0,skipped=0,tooEarly=0;
 
-  for(const g of games){
-    const hr=findRating(g.home_team,ratingsDb);
-    const ar=findRating(g.away_team,ratingsDb);
-    if(!hr||!ar){skipped++;continue}
-    matched++;
+  // Sort games chronologically
+  const sorted=[...games].sort((a,b)=>a.date.localeCompare(b.date));
 
-    const modelHP=logisticWinProb(hr.net+hca,ar.net);
+  // Rolling stats tracker: {team: {gp, ptsFor, ptsAgainst}}
+  const tracker={};
+
+  function getTeamKey(name){return name.toLowerCase().trim()}
+
+  function getRollingRating(teamName){
+    const key=getTeamKey(teamName);
+    const t=tracker[key];
+    if(!t||t.gp<minGames)return null;
+    // Approximate off/def ratings from points per game
+    // NBA averages ~100 possessions/game, so PPG ≈ ORtg (roughly)
+    const off=t.ptsFor/t.gp;
+    const def=t.ptsAgainst/t.gp;
+    const net=off-def;
+    return{off,def,net};
+  }
+
+  function updateTracker(teamName,ptsFor,ptsAgainst){
+    const key=getTeamKey(teamName);
+    if(!tracker[key])tracker[key]={gp:0,ptsFor:0,ptsAgainst:0};
+    tracker[key].gp++;
+    tracker[key].ptsFor+=ptsFor;
+    tracker[key].ptsAgainst+=ptsAgainst;
+  }
+
+  for(const g of sorted){
+    // For NCAAB tournament: use static KenPom ratings (they're pre-tournament, not lookahead)
+    let hr,ar;
+    if(isNCAA){
+      hr=findRating(g.home_team,staticRatings);
+      ar=findRating(g.away_team,staticRatings);
+      if(!hr||!ar){skipped++;updateTracker(g.home_team,g.home_score,g.away_score);updateTracker(g.away_team,g.away_score,g.home_score);continue}
+      matched++;
+    } else {
+      // NBA: use ROLLING ratings (only data available before this game)
+      hr=getRollingRating(g.home_team);
+      ar=getRollingRating(g.away_team);
+      if(!hr||!ar){
+        if(!tracker[getTeamKey(g.home_team)]||tracker[getTeamKey(g.home_team)].gp<minGames)tooEarly++;
+        else skipped++;
+        // Still update tracker with this game's results
+        updateTracker(g.home_team,g.home_score,g.away_score);
+        updateTracker(g.away_team,g.away_score,g.home_score);
+        continue;
+      }
+      matched++;
+    }
+
+    // Scale net rating for logistic model
+    // PPG difference needs different scaling than per-100-poss
+    // NBA PPG std ≈ 5pts → scale factor ~15 for PPG-based ratings
+    const scale=isNCAA?11:15;
+
+    const modelHP=logisticWinProb(hr.net+hca,ar.net,scale);
     const predMargin=(hr.net-ar.net)+hca;
-    const predTotal=hr.off&&ar.off?((hr.off+ar.def)/2)+((ar.off+hr.def)/2):null;
+    const predTotal=((hr.off+ar.def)/2)+((ar.off+hr.def)/2);
 
-    // ML: bet if model >57% either side (stronger threshold than 55%)
+    // ML: bet if model >57% either side
     if(modelHP>0.57){
       res.ml.bets++;
       if(g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
@@ -201,10 +254,10 @@ function backtestGames(games,ratingsDb,hca,spreadStd,totalStd){
       if(!g.home_win){res.ml.wins++;res.ml.pnl.push(1)}else{res.ml.pnl.push(-1)}
     }
 
-    // Spread: if model predicts margin > 5pts different from a flat -3 line
+    // Spread: model predicts margin, simulate against a -3 line
     if(Math.abs(predMargin)>3){
       const simSpread=predMargin>0?-3:3;
-      const coverP=predictSpreadCover(predMargin>0?predMargin:-predMargin,simSpread,spreadStd);
+      const coverP=predictSpreadCover(Math.abs(predMargin),simSpread,spreadStd);
       if(coverP>0.57){
         res.spread.bets++;
         const favMargin=predMargin>0?g.margin:-g.margin;
@@ -212,9 +265,10 @@ function backtestGames(games,ratingsDb,hca,spreadStd,totalStd){
       }
     }
 
-    // Total: if model predicts total >4pts away from 225 (NBA) or 145 (NCAAB)
+    // Total: model predicts total, simulate against the predicted total rounded to nearest 5
     if(predTotal){
-      const refLine=predTotal>200?225:145;// auto-detect sport by scale
+      const refLine=Math.round(predTotal/5)*5;// use model's own prediction as baseline
+      // Only bet if predicted total is 4+ pts away from round number
       if(Math.abs(predTotal-refLine)>4){
         const overP=predictOver(predTotal,refLine,totalStd);
         if(overP>0.57){
@@ -228,9 +282,15 @@ function backtestGames(games,ratingsDb,hca,spreadStd,totalStd){
     }
 
     preds.push({...g,modelHP,predMargin,predTotal});
+
+    // Update tracker AFTER prediction (no lookahead)
+    if(!isNCAA){
+      updateTracker(g.home_team,g.home_score,g.away_score);
+      updateTracker(g.away_team,g.away_score,g.home_score);
+    }
   }
 
-  return{res,preds,matched,skipped};
+  return{res,preds,matched,skipped,tooEarly:tooEarly||0};
 }
 
 // ═══ MAIN ═══
@@ -274,8 +334,8 @@ async function runBacktest(){
   bar.style.width='85%';
 
   // Run backtests
-  const nbaRes=backtestGames(nbaGames,NBA,3.0,12,12);
-  const ncaabRes=backtestGames(ncaabGames,NCAAB,0,11,11);
+  const nbaRes=backtestGames(nbaGames,NBA,3.0,12,12,15,false);
+  const ncaabRes=backtestGames(ncaabGames,NCAAB,0,11,11,1,true);
   bar.style.width='100%';
   status.textContent='Complete!';
 
@@ -311,11 +371,12 @@ function renderResults(nba,ncaab,nbaTotal,ncaabTotal,el){
 
   // Caveats
   h+='<div class="caveat">';
-  h+='<strong>⚠️ Important caveats:</strong><br>';
-  h+='• Uses end-of-season ratings for all games = <strong>lookahead bias</strong>. Early-season games are rated with info that wasn\'t available yet.<br>';
+  h+='<strong>⚠️ Important context:</strong><br>';
+  h+='• <strong>NBA uses rolling ratings</strong> — each game only uses data from prior games. No lookahead bias. The first ~15 games per team are skipped while ratings stabilize.<br>';
+  h+='• <strong>NCAAB uses pre-tournament KenPom ratings</strong> — these were published before the tournament started, so no lookahead bias there either.<br>';
   h+='• Without actual closing odds, we simulate with fixed thresholds (57%+). Real edges depend on finding a book with worse-than-fair odds.<br>';
-  h+='• This tests the MODEL layer only. Cross-book edges (your primary edge source) can\'t be backtested without historical odds snapshots.<br>';
-  h+='• <strong>Forward-test with the TRACK tab in the live scanner for the real performance measurement.</strong>';
+  h+='• This tests the MODEL layer only. Cross-book edges (your primary edge source) need historical odds snapshots to backtest.<br>';
+  h+='• <strong>55%+ win rate on ML is strong. 52-54% is the realistic target against real book odds.</strong>';
   h+='</div>';
 
   h+='<div class="footer">+EV Scanner v4 • Model Backtest • March 2026</div>';
@@ -333,7 +394,7 @@ function renderResults(nba,ncaab,nbaTotal,ncaabTotal,el){
 
 function statsBlock(data,label,totalGames){
   const r=data.res;
-  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">${totalGames} games fetched • ${data.matched} matched to ratings • ${data.skipped} skipped</div>`;
+  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">${totalGames} games fetched • ${data.matched} matched • ${data.skipped} skipped${data.tooEarly?' • '+data.tooEarly+' too early (building ratings)':''}</div>`;
   h+='<div class="row r3">';
   for(const[mkt,name]of [['ml','Moneyline'],['spread','Spread'],['total','Total']]){
     const d=r[mkt];
